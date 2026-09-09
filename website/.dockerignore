@@ -1,0 +1,8 @@
+target
+data
+uploads
+logs
+backups
+*.log
+*.backup
+*.bak

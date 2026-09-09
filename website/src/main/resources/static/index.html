@@ -1,0 +1,1882 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>PaperLens · 论文镜</title>
+    <meta name="theme-color" content="#8f4b2f">
+    <meta name="application-name" content="PaperLens">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="论文镜">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/images/default-covers/brand-image.png">
+    <link rel="stylesheet" href="/style.css?v=20260820-async-generation">
+</head>
+<body>
+<div id="app" v-cloak>
+    <header class="topbar">
+        <div class="container topbar__inner">
+            <button class="brand" type="button" @click="navigate(currentUser ? 'publish' : 'auth')">
+                <span class="brand__crest">
+                    <img src="/images/default-covers/brand-image.png" alt="PaperLens logo" class="brand__crest-image">
+                </span>
+                <span>
+                    <strong>PaperLens · 论文镜</strong>
+                    <small>{{ siteLanguage === 'zh' ? '论文传播生成工作台' : 'Publication generation studio' }}</small>
+                </span>
+            </button>
+
+            <nav class="topnav" aria-label="Primary navigation">
+                <button v-if="currentUser" class="topnav__link" :class="{ active: currentView === 'publish' }" type="button" @click="navigate('publish')">
+                    {{ siteLanguage === 'zh' ? '生成' : 'Generate' }}
+                </button>
+                <button v-if="currentUser" class="topnav__link" :class="{ active: currentView === 'settings' }" type="button" @click="navigate('settings')">
+                    {{ siteLanguage === 'zh' ? '设置' : 'Settings' }}
+                </button>
+            </nav>
+
+            <div class="topbar__account">
+                <template v-if="currentUser">
+                    <div class="account-pill">
+                        <span class="account-pill__label">{{ siteLanguage === 'zh' ? '当前用户' : 'Signed in as' }}</span>
+                        <strong>{{ translateNickname(currentUser.nickname) }}</strong>
+                    </div>
+                </template>
+                <template v-else>
+                    <div class="account-actions">
+                        <button class="primary-btn small" type="button" @click="navigate('auth')">{{ siteLanguage === 'zh' ? '登录' : 'Sign in' }}</button>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </header>
+
+    <section v-if="currentView === 'home'" class="hero">
+        <div class="hero__texture"></div>
+        <div class="container hero__grid">
+            <div class="hero__copy">
+                <p class="eyebrow">ACADEMIC PUBLICATION PLATFORM</p>
+                <h1>Upload, review, and read academic publications.</h1>
+                <p class="hero__text">
+                    Discover reviewed papers, technical reports, DOI metadata, PDFs, code links, datasets, and citation
+                    records in one focused publication archive.
+                </p>
+                <section class="card search-panel hero-search-panel" aria-label="Homepage publication search">
+                    <p class="eyebrow dark">Publication Search</p>
+                    <h3>Search publications by title, author, venue, keyword, DOI, or research area.</h3>
+                    <form class="search-panel__controls" @submit.prevent="triggerHomepageSearch">
+                        <div class="search-panel__search-row">
+                            <input
+                                v-model="homeSearchQuery"
+                                type="text"
+                                placeholder="Search title, authors, venue, keyword, DOI, or abstract"
+                            >
+                            <button
+                                class="primary-btn search-panel__submit"
+                                type="submit"
+                                :disabled="homepageSearchLoading"
+                                :aria-busy="homepageSearchLoading ? 'true' : 'false'"
+                                aria-label="Search homepage publications"
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                    <path d="M10.5 4a6.5 6.5 0 1 0 4.03 11.6l4.44 4.43 1.06-1.06-4.43-4.44A6.5 6.5 0 0 0 10.5 4Zm0 1.5a5 5 0 1 1 0 10 5 5 0 0 1 0-10Z"></path>
+                                </svg>
+                                <span>{{ homepageSearchLoading ? 'Searching...' : 'Search' }}</span>
+                            </button>
+                        </div>
+                    </form>
+                    <div v-if="hasActiveHomepageFilters" class="search-panel__active-filters">
+                        <span class="toolbar__label">Current filters</span>
+                        <div class="tag-list">
+                            <span v-if="activeHomepageKeyword" class="story-chip story-chip--filter">Keyword: "{{ activeHomepageKeyword }}"</span>
+                        </div>
+                    </div>
+                    <div class="tag-list">
+                        <span class="story-chip">{{ filteredPosts.length }} results</span>
+                        <button class="ghost-btn small" type="button" @click="clearHomeSearch">Clear filters</button>
+                    </div>
+                </section>
+            </div>
+
+            <aside class="hero__card card">
+                <p class="eyebrow">ABOUT THIS PLATFORM</p>
+                <h2>A publication-first workspace for academic papers and research outputs.</h2>
+                <p>
+                    PaperLens helps contributors upload publication metadata, attach PDFs, extract candidates,
+                    review drafts, and present approved papers in one calm and trustworthy archive.
+                </p>
+                <div class="hero__stats">
+                    <div>
+                        <strong>{{ totalStories }}</strong>
+                        <span>Publications</span>
+                    </div>
+                    <div>
+                        <strong>{{ visibleCollectionCount }}</strong>
+                        <span>Research Areas</span>
+                    </div>
+                    <div>
+                        <strong>{{ totalContributors }}</strong>
+                        <span>Contributors</span>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </section>
+
+    <main class="container main-shell" :class="{ 'main-shell--home': currentView === 'home' }">
+        <div v-if="loading" class="card empty-state">Loading...</div>
+        <div v-if="successMessage" class="message success">{{ successMessage }}</div>
+        <div v-if="errorMessage" class="message error">{{ errorMessage }}</div>
+
+        <section v-show="currentView === 'home'" class="view-stack">
+            <section class="card statistics-panel">
+                <div class="section-head compact">
+                    <div>
+                        <p class="eyebrow dark">Publication Insights</p>
+                        <h2>Publication Activity and Heat Ranking</h2>
+                    </div>
+                </div>
+                <div class="home-insights-grid">
+                    <article class="chart-card chart-card--category">
+                        <div id="chart-categories" class="chart-surface chart-surface--pie" aria-label="Publication category chart"></div>
+                        <div v-if="categoryPieLegendItems.length" class="category-chart-legend" aria-label="Publication category legend">
+                            <div v-for="item in categoryPieLegendItems" :key="item.id" class="category-chart-legend__item">
+                                <span class="category-chart-legend__swatch" :style="{ backgroundColor: item.color }"></span>
+                                <span class="category-chart-legend__name">{{ item.name }}</span>
+                                <span class="category-chart-legend__meta">{{ item.count }} &middot; {{ item.percent }}%</span>
+                            </div>
+                        </div>
+                    </article>
+                    <aside class="card ranking-card">
+                    <p class="eyebrow dark">Heat Ranking</p>
+                    <h3>Most active publications</h3>
+                    <ol v-if="hotPosts.length" class="ranking-list">
+                        <li v-for="(post, index) in hotPosts" :key="post.id">
+                            <button class="ranking-item" type="button" @click="openPost(post.id)">
+                                <span class="ranking-item__index">{{ index + 1 }}</span>
+                                <span class="ranking-item__body">
+                                    <strong>{{ translateText(post.title) }}</strong>
+                                    <small>{{ buildHeatScore(post) }} heat - {{ post.commentCount }} comments</small>
+                                </span>
+                            </button>
+                        </li>
+                    </ol>
+                    <p v-else class="muted">{{ hotRankingEmptyMessage }}</p>
+                    </aside>
+                </div>
+            </section>
+
+            <section class="article-results-section" ref="articleResultsSection">
+                <div class="section-head article-results-section__head">
+                    <div>
+                        <p class="eyebrow dark">Publication Archive</p>
+                        <h2>{{ articleResultsHeading }}</h2>
+                    </div>
+                    <span class="story-chip">{{ postResultCountLabel }}</span>
+                </div>
+
+                <div v-if="paginatedPosts.length" class="post-grid">
+                    <article v-for="post in paginatedPosts" :key="post.id" class="post-card card">
+                        <div class="post-card__cover" :class="{ 'cover-surface--default': !hasPostProvidedCover(post), 'cover-surface--uploaded': hasPostProvidedCover(post) }" :style="coverSurfaceStyle(post)">
+                            <img
+                                v-if="getPostCoverImage(post)"
+                                :src="resolveAsset(getPostCoverImage(post))"
+                                :alt="`${translateText(post.title)} cover image`"
+                                class="cover-surface__image post-card__cover-image"
+                                loading="lazy"
+                            >
+                            <div class="default-cover default-cover--card">
+                                <span class="default-cover__eyebrow">Publication</span>
+                                <strong class="default-cover__title">{{ coverCategoryLabel(post.categoryName) }}</strong>
+                            </div>
+                        </div>
+                        <div class="post-card__body">
+                            <h3>{{ translateText(post.title) }}</h3>
+                            <div class="paper-card__meta">
+                                <p class="muted">By {{ paperAuthorsLabel(post) }}</p>
+                                <p class="muted">
+                                    <span v-if="paperYearLabel(post)">{{ paperYearLabel(post) }}</span>
+                                    <span v-if="paperYearLabel(post) && post.venue"> 路 </span>
+                                    <span v-if="post.venue">{{ post.venue }}</span>
+                                </p>
+                                <p class="muted" v-if="post.researchArea">{{ post.researchArea }}</p>
+                                <p class="paper-card__abstract" v-if="abstractPreview(post)">{{ abstractPreview(post) }}</p>
+                                <div class="tag-list paper-keywords" v-if="paperKeywordList(post).length">
+                                    <span class="story-chip" v-for="keyword in paperKeywordList(post)" :key="keyword">{{ keyword }}</span>
+                                </div>
+                            </div>
+                            <div class="meta-row">
+                                <span>{{ post.commentCount }} comments</span>
+                                <span>{{ formatShortDate(post.createdAt) }}</span>
+                            </div>
+                            <div class="paper-actions">
+                                <button class="ghost-btn small" type="button" @click="openPost(post.id)">View Details</button>
+                                <a v-if="post.pdfUrl" class="ghost-btn small" :href="resolveAsset(post.pdfUrl)" target="_blank" rel="noopener">PDF</a>
+                                <a v-if="post.doi" class="ghost-btn small" :href="doiHref(post.doi)" target="_blank" rel="noopener">DOI</a>
+                                <button v-if="displayBibtex(post)" class="ghost-btn small" type="button" @click="copyBibtex(post)">BibTeX</button>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+
+                <div v-else class="card empty-state home-empty-state">
+                    <strong>{{ homepageEmptyStateTitle }}</strong>
+                    <p class="muted">{{ homepageEmptyStateMessage }}</p>
+                </div>
+
+                <div v-if="hasPostPagination" class="pagination-controls" aria-label="Homepage publication pagination">
+                    <button class="ghost-btn small" type="button" @click="previousPostPage" :disabled="currentPostPage === 1">Previous</button>
+                    <span>Page {{ currentPostPage }} of {{ totalPostPages }}</span>
+                    <button class="ghost-btn small" type="button" @click="nextPostPage" :disabled="currentPostPage === totalPostPages">Next</button>
+                </div>
+            </section>
+        </section>
+
+        <section v-show="currentView === 'detail'" class="view-stack">
+            <div class="section-head">
+                <div>
+                    <p class="eyebrow dark">Reading Room</p>
+                    <h2>Publication Detail</h2>
+                </div>
+                <div class="section-head__actions">
+                    <button class="ghost-btn small" type="button" @click="navigate('home')">Back to homepage</button>
+                </div>
+            </div>
+
+            <div v-if="selectedPost" class="detail-layout">
+                <article class="card detail-card">
+                    <div class="detail-cover" :class="{ 'cover-surface--default': !hasPostProvidedCover(selectedPost), 'cover-surface--uploaded': hasPostProvidedCover(selectedPost) }" :style="coverSurfaceStyle(selectedPost)">
+                        <img
+                            v-if="hasPostProvidedCover(selectedPost)"
+                            :src="resolveAsset(getPostOwnCoverImage(selectedPost))"
+                            :alt="`${translateText(selectedPost.title)} cover image`"
+                            class="cover-surface__image detail-cover__image"
+                        >
+                        <img
+                            v-if="!hasPostProvidedCover(selectedPost)"
+                            :src="resolveAsset(getPostCoverImage(selectedPost))"
+                            :alt="`${translateText(selectedPost.title)} default cover image`"
+                            class="cover-surface__image cover-surface__default-image"
+                        >
+                        <div v-if="!hasPostProvidedCover(selectedPost)" class="default-cover default-cover--detail">
+                            <span class="default-cover__eyebrow">Publication</span>
+                            <strong class="default-cover__title">{{ coverCategoryLabel(selectedPost.categoryName) }}</strong>
+                        </div>
+                    </div>
+                    <span class="story-chip story-chip--publication">Publication</span>
+                    <h2>{{ translateText(selectedPost.title) }}</h2>
+                    <div class="paper-detail-meta">
+                        <p><strong>Authors</strong><span>{{ paperAuthorsLabel(selectedPost) }}</span></p>
+                        <p v-if="paperYearLabel(selectedPost)"><strong>Year</strong><span>{{ paperYearLabel(selectedPost) }}</span></p>
+                        <p v-if="selectedPost.venue"><strong>Venue</strong><span>{{ selectedPost.venue }}</span></p>
+                        <p v-if="selectedPost.researchArea"><strong>Research Area</strong><span>{{ selectedPost.researchArea }}</span></p>
+                        <p v-if="selectedPost.doi"><strong>DOI</strong><span>{{ selectedPost.doi }}</span></p>
+                    </div>
+                    <div class="tag-list paper-keywords" v-if="paperKeywordList(selectedPost).length">
+                        <span class="story-chip" v-for="keyword in paperKeywordList(selectedPost)" :key="keyword">{{ keyword }}</span>
+                    </div>
+                    <div class="detail-reading-block paper-abstract-block" v-if="selectedPost.abstractText">
+                        <p class="toolbar__label">Abstract</p>
+                        <div class="detail-content">{{ selectedPost.abstractText }}</div>
+                    </div>
+                    <div class="paper-bibtex-block" v-if="displayBibtex(selectedPost)">
+                        <div class="section-head compact">
+                            <p class="toolbar__label">BibTeX</p>
+                            <button class="ghost-btn small" type="button" @click="copyBibtex(selectedPost)">Copy BibTeX</button>
+                        </div>
+                        <pre><code>{{ displayBibtex(selectedPost) }}</code></pre>
+                    </div>
+
+                </article>
+
+                <aside class="card detail-side">
+                    <div class="detail-side__block" v-if="selectedPost.pdfUrl || selectedPost.doi || selectedPost.codeUrl || selectedPost.datasetUrl">
+                        <p class="toolbar__label">Paper Links</p>
+                        <div class="paper-actions paper-actions--side">
+                            <a v-if="selectedPost.pdfUrl" class="ghost-btn small" :href="resolveAsset(selectedPost.pdfUrl)" target="_blank" rel="noopener">Open PDF</a>
+                            <a v-if="selectedPost.doi" class="ghost-btn small" :href="doiHref(selectedPost.doi)" target="_blank" rel="noopener">DOI</a>
+                            <a v-if="selectedPost.codeUrl" class="ghost-btn small" :href="selectedPost.codeUrl" target="_blank" rel="noopener">Code</a>
+                            <a v-if="selectedPost.datasetUrl" class="ghost-btn small" :href="selectedPost.datasetUrl" target="_blank" rel="noopener">Dataset</a>
+                        </div>
+                    </div>
+                    <div class="detail-side__block ai-cover-panel ai-cover-panel--side" v-if="false && isAdmin && selectedPost.pdfUrl">
+                        <p class="toolbar__label">AI Representative Image</p>
+                        <button
+                            class="ghost-btn small"
+                            type="button"
+                            :disabled="aiCoverGenerationLoading"
+                            @click="generateAiCoverCandidates"
+                        >
+                            {{ aiCoverGenerationLoading ? 'Generating...' : 'Generate AI Candidate' }}
+                        </button>
+                        <button v-if="aiCoverCandidates.length" class="ghost-btn small" type="button" @click="clearAiCoverCandidates">Clear stale candidates</button>
+                        <p v-if="aiCoverGenerationLoading" class="muted">Extracting GROBID/PDF evidence, supplementing it with DOI metadata, and generating grounded product-in-use candidates. This may take a few minutes.</p>
+                        <p v-if="aiCoverGenerationResult" class="muted">{{ aiCoverStatusLabel(aiCoverGenerationResult) }}</p>
+                        <div v-if="aiCoverCandidates.length" class="ai-cover-candidate-grid ai-cover-candidate-grid--side">
+                            <article
+                                v-for="(candidate, index) in aiCoverCandidates"
+                                :key="candidate.candidateId || candidate.imageUrl"
+                                class="ai-cover-candidate-card"
+                                :class="{ recommended: isRankedAiCoverRecommendation(candidate), selected: isSelectedAiCoverCandidate(candidate) }"
+                            >
+                                <div class="ai-cover-candidate-card__image">
+                                    <img :src="resolveAsset(candidate.imageUrl)" :alt="`AI representative image candidate ${index + 1}`">
+                                    <span v-if="isRankedAiCoverRecommendation(candidate)" class="ai-cover-candidate-card__badge">Recommended</span>
+                                    <span v-if="isSelectedAiCoverCandidate(candidate)" class="ai-cover-candidate-card__badge selected">Selected cover</span>
+                                </div>
+                                <div class="ai-cover-candidate-card__body">
+                                    <h4>Candidate {{ index + 1 }}</h4>
+                                    <p v-if="candidate.recommendationReason" class="ai-cover-candidate-reason">{{ candidate.recommendationReason }}</p>
+                                    <div v-if="candidate.sceneScore" class="ai-cover-candidate-scores">
+                                        <span>Scene <strong>{{ candidate.sceneScore.sceneRealismScore }}/10</strong></span>
+                                        <span>Task <strong>{{ candidate.sceneScore.taskAccuracyScore }}/10</strong></span>
+                                        <span>Technology <strong>{{ candidate.sceneScore.technologyRelevanceScore }}/10</strong></span>
+                                        <span>Clarity <strong>{{ candidate.sceneScore.visualClarityScore }}/10</strong></span>
+                                    </div>
+                                    <details v-if="aiCoverSceneDetails.length" class="ai-cover-candidate-details">
+                                        <summary>Scene details</summary>
+                                        <dl>
+                                            <template v-for="item in aiCoverSceneDetails" :key="item.label">
+                                                <dt>{{ item.label }}</dt>
+                                                <dd>{{ item.value }}</dd>
+                                            </template>
+                                        </dl>
+                                    </details>
+                                    <button
+                                        class="primary-btn small"
+                                        type="button"
+                                        :disabled="aiCoverSelectionLoading || isSelectedAiCoverCandidate(candidate)"
+                                        @click="selectAiCoverCandidate(candidate)"
+                                    >
+                                        {{ isSelectedAiCoverCandidate(candidate) ? 'Selected as Cover' : 'Select as Cover' }}
+                                    </button>
+                                </div>
+                            </article>
+                        </div>
+                    </div>
+                    <div class="detail-side__block">
+                        <p class="toolbar__label">Discussion</p>
+                        <strong>{{ selectedPost.commentCount }} comments</strong>
+                    </div>
+                    <div class="detail-side__block">
+                        <p class="toolbar__label">Popularity</p>
+                        <strong>{{ buildHeatScore(selectedPost) }} heat</strong>
+                    </div>
+                    <div class="detail-side__block">
+                        <p class="toolbar__label">Appreciation</p>
+                        <strong>{{ displayLikeCount(selectedPost) }} likes</strong>
+                        <button
+                            class="primary-btn small like-action-btn"
+                            :class="{ liked: selectedPostLiked }"
+                            type="button"
+                            :disabled="likeRequestPending"
+                            :aria-busy="likeRequestPending ? 'true' : 'false'"
+                            @click="likePost"
+                        >
+                            {{ likeRequestPending ? 'Updating...' : (selectedPostLiked ? 'Liked' : 'Like Publication') }}
+                        </button>
+                    </div>
+
+                    <div class="comment-section">
+                        <div class="section-head compact">
+                            <h3>Conversation</h3>
+                        </div>
+
+                        <form class="comment-form" @submit.prevent="submitComment">
+                            <textarea v-model="commentForm.content" rows="4" placeholder="Write a thoughtful response to this publication..."></textarea>
+                            <button class="primary-btn small" type="submit">Post comment</button>
+                        </form>
+
+                        <div v-if="selectedPostComments.length" class="comment-list">
+                            <div v-for="comment in paginatedComments" :key="comment.id" class="comment-item">
+                                <strong>{{ translateNickname(comment.authorNickname) }}</strong>
+                                <span>{{ formatDate(comment.createdAt) }}</span>
+                                <p>{{ translateText(comment.content) }}</p>
+                                <button
+                                    v-if="canDeleteComment(comment)"
+                                    class="ghost-btn small comment-delete-btn"
+                                    type="button"
+                                    @click="deleteComment(comment)"
+                                >
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                        <p v-else class="muted">No comments yet.</p>
+
+                        <div v-if="hasCommentPagination" class="comment-pagination">
+                            <button class="ghost-btn small" type="button" @click="previousCommentPage" :disabled="currentCommentPage === 1">Previous</button>
+                            <span>{{ commentPaginationLabel }}</span>
+                            <button class="ghost-btn small" type="button" @click="nextCommentPage" :disabled="currentCommentPage === totalCommentPages">Next</button>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+
+            <div v-else class="card empty-state">Select a publication from the archive first.</div>
+        </section>
+
+        <section v-show="currentView === 'publish'" class="view-stack">
+            <div class="section-head">
+                <div>
+                    <p class="eyebrow dark">{{ siteLanguage === 'zh' ? '论文传播工作台' : 'Publication Studio' }}</p>
+                    <h2>{{ siteLanguage === 'zh' ? (editingPostId ? '编辑并生成' : '上传并生成') : (editingPostId ? 'Edit and generate' : 'Upload and generate') }}</h2>
+                </div>
+            </div>
+
+            <div class="form-layout">
+                <form class="card form-card" @submit.prevent="submitPost">
+                    <div class="message-inline">
+                        <span class="message-inline__label">{{ siteLanguage === 'zh' ? '流程' : 'Workflow' }}</span>
+                        <strong>{{ publicationWorkflowHint }}</strong>
+                    </div>
+                    <p class="muted">{{ siteLanguage === 'zh' ? '必填项只有：Participant ID、论文标题和论文 PDF。其他信息均为可选。' : 'Only Participant ID, paper title, and paper PDF are required. All other fields are optional.' }}</p>
+                    <p v-if="editingRejectReason" class="muted">Latest rejection reason: {{ editingRejectReason }}</p>
+                    <div class="form-grid form-grid--draft">
+                        <label class="form-field">
+                            <span class="form-field__label">{{ siteLanguage === 'zh' ? '论文标题 *' : 'Paper title *' }}</span>
+                            <span
+                                class="form-field__hint"
+                                :class="{ 'form-field__hint--limit': postTitleByteCount >= postTitleByteLimit }"
+                            >
+                                {{ siteLanguage === 'zh' ? '最多' : 'Maximum' }} {{ postTitleByteLimit }} UTF-8 {{ siteLanguage === 'zh' ? '字节' : 'bytes' }} - {{ postTitleByteCount }}/{{ postTitleByteLimit }}
+                            </span>
+                            <input
+                                v-model="postForm.title"
+                                type="text"
+                            :placeholder="siteLanguage === 'zh' ? '例如：论文标题' : 'e.g. Paper title'"
+                                @input="limitPostField('title', postTitleByteLimit, $event)"
+                            >
+                        </label>
+                    </div>
+
+                    <label>
+                        {{ siteLanguage === 'zh' ? '封面图片（可选）' : 'Teaser/Cover Image' }}
+                        <div class="file-picker">
+                            <input ref="coverFileInput" class="file-picker__input" type="file" accept="image/*" @change="handleCoverUpload">
+                            <button class="ghost-btn small" type="button" @click="triggerFilePicker('coverFileInput')">{{ siteLanguage === 'zh' ? '选择图片' : 'Choose file' }}</button>
+                            <span class="file-picker__name">{{ coverFileLabel }}</span>
+                        </div>
+                    </label>
+                    <div v-if="postForm.coverImageUrl" class="teaser-preview">
+                        <img :src="resolveAsset(postForm.coverImageUrl)" alt="Selected teaser preview">
+                        <p class="muted">Teaser ready: {{ postForm.coverImageUrl }}</p>
+                    </div>
+
+                    <section class="publication-form-block">
+                        <label class="form-field participant-id-field">
+                            <span class="form-field__label">Participant ID *</span>
+                            <span class="form-field__hint">{{ siteLanguage === 'zh' ? '请输入你在问卷中自定的同一个编号，用于对应两次任务的输入和输出。' : 'Use the same self-chosen ID as in every questionnaire so both tasks can be matched.' }}</span>
+                            <input v-model.trim="postForm.participantId" type="text" maxlength="40" autocomplete="off" placeholder="e.g. PL_A07" required>
+                        </label>
+                        <div class="section-head compact">
+                            <div>
+                                <p class="eyebrow dark">{{ siteLanguage === 'zh' ? '论文元数据' : 'Publication Metadata' }}</p>
+                                <h3>{{ siteLanguage === 'zh' ? '论文信息' : 'Paper information' }}</h3>
+                            </div>
+                        </div>
+                        <div class="form-grid form-grid--draft">
+                            <label class="form-field">
+                                <span class="form-field__label">{{ siteLanguage === 'zh' ? '作者（可选）' : 'Authors (optional)' }}</span>
+                                <span class="form-field__hint">{{ siteLanguage === 'zh' ? '多位作者请使用逗号分隔。' : 'Separate multiple authors with commas.' }}</span>
+                                <input v-model="postForm.publicationAuthors" type="text" placeholder="e.g. A. Smith, B. Chen">
+                            </label>
+                            <label class="form-field">
+                                <span class="form-field__label">{{ siteLanguage === 'zh' ? '发表年份（可选）' : 'Publication year (optional)' }}</span>
+                                <span class="form-field__hint">{{ siteLanguage === 'zh' ? '用于论文排序和引用。' : 'Used for paper sorting and citation fallback.' }}</span>
+                                <input v-model="postForm.publicationYear" type="number" min="1000" max="3000" placeholder="e.g. 2026">
+                            </label>
+                            <label class="form-field">
+                                <span class="form-field__label">{{ siteLanguage === 'zh' ? '发表场所（可选）' : 'Venue (optional)' }}</span>
+                                <span class="form-field__hint">{{ siteLanguage === 'zh' ? '会议、期刊、工作坊或实验室报告。' : 'Conference, journal, workshop, or lab report series.' }}</span>
+                                <input v-model="postForm.venue" type="text" placeholder="e.g. CHI 2026">
+                            </label>
+                            <label class="form-field">
+                                <span class="form-field__label">{{ siteLanguage === 'zh' ? '研究领域（可选）' : 'Research area (optional)' }}</span>
+                                <span class="form-field__hint">{{ siteLanguage === 'zh' ? '填写简短的研究领域。' : 'Use a short area label for cards and filtering.' }}</span>
+                                <input v-model="postForm.researchArea" type="text" placeholder="e.g. Human-Computer Interaction">
+                            </label>
+                        </div>
+                        <label class="form-field">
+                            <span class="form-field__label">{{ siteLanguage === 'zh' ? '摘要（可选）' : 'Abstract (optional)' }}</span>
+                            <span class="form-field__hint">{{ siteLanguage === 'zh' ? '可手动填写，PDF 读取后也可补充。' : 'Manual abstract text shown on paper cards and detail pages.' }}</span>
+                            <textarea v-model="postForm.abstractText" rows="5" :placeholder="siteLanguage === 'zh' ? '在此粘贴论文摘要。' : 'Paste the paper abstract here.'"></textarea>
+                        </label>
+                        <div class="form-grid form-grid--draft">
+                            <label class="form-field">
+                                <span class="form-field__label">{{ siteLanguage === 'zh' ? '关键词（可选）' : 'Keywords (optional)' }}</span>
+                                <span class="form-field__hint">{{ siteLanguage === 'zh' ? '使用逗号分隔。' : 'Comma-separated keywords.' }}</span>
+                                <input v-model="postForm.keywords" type="text" placeholder="e.g. metadata extraction, digital archives, usability">
+                            </label>
+                            <label class="form-field">
+                                <span class="form-field__label">DOI</span>
+                                <span class="form-field__hint">DOI string or full DOI URL.</span>
+                                <input v-model="postForm.doi" type="text" placeholder="e.g. 10.1145/example">
+                            </label>
+                            <label class="form-field">
+                                <span class="form-field__label">Code Link</span>
+                                <span class="form-field__hint">Optional repository or project link.</span>
+                                <input v-model="postForm.codeUrl" type="url" placeholder="https://github.com/...">
+                            </label>
+                            <label class="form-field">
+                                <span class="form-field__label">Dataset Link</span>
+                                <span class="form-field__hint">{{ siteLanguage === 'zh' ? '可选的数据集或补充材料链接。' : 'Optional dataset or supplementary material link.' }}</span>
+                                <input v-model="postForm.datasetUrl" type="url" placeholder="https://...">
+                            </label>
+                        </div>
+                        <label>
+                            {{ siteLanguage === 'zh' ? '上传论文 PDF *' : 'Upload paper PDF *' }}
+                            <div class="file-picker">
+                                <input ref="pdfFileInput" class="file-picker__input" type="file" accept="application/pdf,.pdf" @change="handlePdfUpload">
+                                <button class="ghost-btn small" type="button" :disabled="pdfUploadLoading" @click="triggerFilePicker('pdfFileInput')">{{ pdfUploadLoading ? (siteLanguage === 'zh' ? '正在上传...' : 'Uploading...') : (siteLanguage === 'zh' ? '选择 PDF' : 'Choose PDF') }}</button>
+                                <span class="file-picker__name">{{ pdfFileLabel }}</span>
+                            </div>
+                        </label>
+                        <div class="task-progress" v-if="pdfUploadLoading" aria-live="polite">
+                            <div class="task-progress__row"><span>{{ siteLanguage === 'zh' ? '正在上传 PDF' : 'Uploading PDF' }}</span><strong>{{ pdfUploadProgress }}%</strong></div>
+                            <div class="task-progress__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="pdfUploadProgress"><span :style="{ width: `${pdfUploadProgress}%` }"></span></div>
+                            <p class="muted">{{ siteLanguage === 'zh' ? '公网访问时会受文件大小和网络速度影响，请不要重复选择文件。' : 'Public uploads may take longer depending on file size and network speed.' }}</p>
+                        </div>
+                        <p class="muted" v-if="postForm.pdfUrl">{{ siteLanguage === 'zh' ? 'PDF 已就绪：' : 'PDF ready: ' }}{{ postForm.pdfUrl }}</p>
+                        <label class="form-field">
+                            <span class="form-field__label">BibTeX</span>
+                            <span class="form-field__hint">Optional manual citation. A simple fallback is generated if this is empty.</span>
+                            <textarea v-model="postForm.bibtex" rows="5" placeholder="@article{...}"></textarea>
+                        </label>
+                    </section>
+
+                    <section class="publication-form-block social-copy-panel">
+                        <div class="section-head compact social-copy-panel__head">
+                            <div>
+                                <p class="eyebrow dark">{{ siteLanguage === 'zh' ? '文案工作室' : 'Copy Studio' }}</p>
+                                <h3>{{ siteLanguage === 'zh' ? '生成论文传播文案' : 'Generate publication copy' }}</h3>
+                            </div>
+                        </div>
+                        <p v-if="!postForm.pdfUrl" class="muted">{{ siteLanguage === 'zh' ? '请先上传 PDF，再生成文案。' : 'Upload a PDF before generating copy.' }}</p>
+                        <p v-else-if="!editingPostId" class="muted">{{ siteLanguage === 'zh' ? 'PDF 已上传。点击生成时会自动保存论文信息。' : 'PDF uploaded. The publication will be saved automatically when you generate.' }}</p>
+                        <template v-if="postForm.pdfUrl">
+                            <div class="social-copy-mode" role="group" aria-label="Copy edition">
+                                <button type="button" :class="{ active: socialCopyMode === 'personal' }" @click="setSocialCopyMode('personal')">{{ siteLanguage === 'zh' ? '个人版' : 'Personal' }}</button>
+                                <button type="button" :class="{ active: socialCopyMode === 'outreach' }" @click="setSocialCopyMode('outreach')">{{ siteLanguage === 'zh' ? '传播版' : 'Outreach' }}</button>
+                            </div>
+                            <p class="muted">{{ siteLanguage === 'zh' ? '所选受众和目的会进入模型提示词，用于调整开场、词汇、解释深度、价值表达和行动引导。' : 'Audience and goal are included in the model prompt to control the opening, vocabulary, depth, value framing, and call to action.' }}</p>
+                            <label class="social-copy-tone">
+                                <span>{{ siteLanguage === 'zh' ? '风格' : 'Style' }}</span>
+                                <select v-model="socialCopyTone" @change="selectSocialCopyTone">
+                                    <option value="engaging">{{ siteLanguage === 'zh' ? '更吸引人' : 'Engaging' }}</option>
+                                    <option value="concise">{{ siteLanguage === 'zh' ? '更简短' : 'Concise' }}</option>
+                                    <option value="professional">{{ siteLanguage === 'zh' ? '更正式' : 'Professional' }}</option>
+                                </select>
+                            </label>
+                            <label class="social-copy-tone">
+                                <span>{{ siteLanguage === 'zh' ? '目标受众' : 'Audience' }}</span>
+                                <select v-model="socialCopyAudience">
+                                    <option value="public">{{ siteLanguage === 'zh' ? '普通公众' : 'General public' }}</option>
+                                    <option value="student">{{ siteLanguage === 'zh' ? '学生' : 'Students' }}</option>
+                                    <option value="researcher">{{ siteLanguage === 'zh' ? '研究者' : 'Researchers' }}</option>
+                                    <option value="practitioner">{{ siteLanguage === 'zh' ? '行业从业者' : 'Practitioners' }}</option>
+                                </select>
+                            </label>
+                            <label class="social-copy-tone">
+                                <span>{{ siteLanguage === 'zh' ? '传播目的' : 'Communication goal' }}</span>
+                                <select v-model="socialCopyGoal">
+                                    <option value="science_education">{{ siteLanguage === 'zh' ? '科普解释' : 'Science explanation' }}</option>
+                                    <option value="visibility">{{ siteLanguage === 'zh' ? '提高关注' : 'Increase visibility' }}</option>
+                                    <option value="read_more">{{ siteLanguage === 'zh' ? '引导阅读原文' : 'Encourage full-paper reading' }}</option>
+                                    <option value="engagement">{{ siteLanguage === 'zh' ? '促进互动' : 'Encourage discussion' }}</option>
+                                    <option value="collaboration">{{ siteLanguage === 'zh' ? '招募合作' : 'Invite collaboration' }}</option>
+                                </select>
+                            </label>
+                            <label class="social-copy-tone">
+                                <span>{{ siteLanguage === 'zh' ? '篇幅' : 'Length' }}</span>
+                                <select v-model="socialCopyLength">
+                                    <option value="short">{{ siteLanguage === 'zh' ? '短笔记' : 'Short' }}</option>
+                                    <option value="standard">{{ siteLanguage === 'zh' ? '标准笔记' : 'Standard' }}</option>
+                                    <option value="long">{{ siteLanguage === 'zh' ? '详细笔记' : 'Detailed' }}</option>
+                                </select>
+                            </label>
+                            <label class="social-copy-tone">
+                                <span>{{ siteLanguage === 'zh' ? '行动引导（可选）' : 'Call to action (optional)' }}</span>
+                                <input v-model="socialCopyCallToAction" maxlength="160" :placeholder="siteLanguage === 'zh' ? '例如：欢迎留言讨论' : 'Example: Share your thoughts in the comments'">
+                            </label>
+                            <button class="primary-btn small" type="button" :disabled="socialCopyLoading || pdfUploadLoading" @click="generateSocialCopyForPublishPost">
+                                {{ socialCopyLoading ? (siteLanguage === 'zh' ? '正在生成文案...' : 'Generating copy...') : (socialCopyResult ? (siteLanguage === 'zh' ? '重新生成文案' : 'Regenerate copy') : (siteLanguage === 'zh' ? '生成发布文案' : 'Generate copy')) }}
+                            </button>
+                            <div v-if="socialCopyResult" class="social-copy-result">
+                                <textarea :value="socialCopyResult.copyText" rows="12" readonly aria-label="Generated social media copy"></textarea>
+                                <button class="primary-btn small" type="button" @click="copyGeneratedSocialCopy">{{ siteLanguage === 'zh' ? '复制文案' : 'Copy text' }}</button>
+                                <p class="muted social-copy-source">{{ socialCopySourceLabel(socialCopyResult.source) }}</p>
+                                <details v-if="socialCopyResult.contentPlan" class="social-copy-evidence">
+                                    <summary>{{ siteLanguage === 'zh' ? '查看生成计划与论文证据' : 'View generation plan and paper evidence' }}</summary>
+                                    <p><strong>{{ siteLanguage === 'zh' ? '读者：' : 'Audience: ' }}</strong>{{ socialCopyResult.contentPlan.audienceGuidance }}</p>
+                                    <p><strong>{{ siteLanguage === 'zh' ? '目的：' : 'Goal: ' }}</strong>{{ socialCopyResult.contentPlan.goalGuidance }}</p>
+                                    <p><strong>CTA：</strong>{{ socialCopyResult.contentPlan.callToAction }}</p>
+                                    <p v-for="span in socialCopyResult.evidenceSpans || []" :key="span.id" class="muted">
+                                        <a v-if="span.pageNumber && postForm.pdfUrl" :href="resolveAsset(postForm.pdfUrl) + '#page=' + span.pageNumber" target="_blank" rel="noopener">第 {{ span.pageNumber }} 页</a>
+                                        <span v-else>{{ span.section || span.source }}</span>：{{ span.text }}
+                                    </p>
+                                </details>
+                                <div v-if="socialCopyResult.candidates && socialCopyResult.candidates.length" class="social-copy-evidence">
+                                    <p><strong>候选与核验</strong></p>
+                                    <button v-for="candidate in socialCopyResult.candidates" :key="candidate.id" class="ghost-btn small" type="button" @click="selectSocialCopyCandidate(candidate)">
+                                        {{ candidate.recommended ? '推荐：' : '' }}{{ candidate.style }}（事实性 {{ candidate.factualityScore }}/5）
+                                    </button>
+                                    <p v-for="check in socialCopyResult.claimChecks || []" :key="check.claim" class="muted">
+                                        {{ check.verdict === 'SUPPORTED' ? '已核验' : '需确认' }}：{{ check.claim }}
+                                    </p>
+                                </div>
+                            </div>
+                        </template>
+                    </section>
+
+                    <section v-if="currentUser" class="publication-form-block publication-image-studio">
+                        <div class="section-head compact">
+                            <div>
+                                <p class="eyebrow dark">{{ siteLanguage === 'zh' ? '图片工作室' : 'Image Studio' }}</p>
+                                <h3>{{ siteLanguage === 'zh' ? '生成并选择论文图片' : 'Generate and choose publication images' }}</h3>
+                            </div>
+                        </div>
+                        <p v-if="!postForm.pdfUrl" class="muted">{{ siteLanguage === 'zh' ? '请先上传 PDF，再生成图片。' : 'Upload a PDF before generating images.' }}</p>
+                        <p v-else-if="!editingPostId" class="muted">{{ siteLanguage === 'zh' ? 'PDF 已上传。点击生成时会自动保存论文信息。' : 'PDF uploaded. The publication will be saved automatically when you generate.' }}</p>
+                        <template v-if="postForm.pdfUrl">
+                            <div class="image-editor__toolbar">
+                                <label class="form-field image-editor__source"><span class="form-field__label">{{ imageStudioLanguage === 'zh' ? '目标用户' : 'Audience' }}</span><select v-model="imageGenerationOptions.audience"><option value="public">{{ imageStudioLanguage === 'zh' ? '普通公众' : 'General public' }}</option><option value="student">{{ imageStudioLanguage === 'zh' ? '学生' : 'Students' }}</option><option value="practitioner">{{ imageStudioLanguage === 'zh' ? '从业者' : 'Practitioners' }}</option><option value="researcher">{{ imageStudioLanguage === 'zh' ? '研究者' : 'Researchers' }}</option></select></label>
+                                <label class="form-field image-editor__source"><span class="form-field__label">{{ imageStudioLanguage === 'zh' ? '传播目的' : 'Communication goal' }}</span><select v-model="imageGenerationOptions.communicationGoal"><option value="show-application">{{ imageStudioLanguage === 'zh' ? '展示应用' : 'Show application' }}</option><option value="attract-attention">{{ imageStudioLanguage === 'zh' ? '吸引关注' : 'Attract attention' }}</option><option value="science-explanation">{{ imageStudioLanguage === 'zh' ? '科普解释' : 'Science explanation' }}</option><option value="spark-discussion">{{ imageStudioLanguage === 'zh' ? '引发讨论' : 'Spark discussion' }}</option></select></label>
+                                <label class="form-field image-editor__source"><span class="form-field__label">{{ imageStudioLanguage === 'zh' ? '图片风格' : 'Image style' }}</span><select v-model="imageGenerationOptions.imageStyle"><option value="auto">{{ imageStudioLanguage === 'zh' ? '自动建议' : 'Automatic suggestion' }}</option><option value="documentary">{{ imageStudioLanguage === 'zh' ? '纪实场景' : 'Documentary scene' }}</option><option value="artifact-closeup">{{ imageStudioLanguage === 'zh' ? '对象特写' : 'Object close-up' }}</option><option value="study-context">{{ imageStudioLanguage === 'zh' ? '研究环境' : 'Research setting' }}</option><option value="interaction-scene">{{ imageStudioLanguage === 'zh' ? '交互场景' : 'Interaction scene' }}</option><option value="editorial-concept">{{ imageStudioLanguage === 'zh' ? '编辑概念图' : 'Editorial concept' }}</option><option value="method-summary">{{ imageStudioLanguage === 'zh' ? '方法概览' : 'Method overview' }}</option></select></label>
+                                <label class="form-field image-editor__source"><span class="form-field__label">{{ imageStudioLanguage === 'zh' ? '原图策略' : 'Original-image policy' }}</span><select v-model="imageGenerationOptions.sourcePolicy"><option value="balanced">{{ imageStudioLanguage === 'zh' ? '平衡' : 'Balanced' }}</option><option value="source-first">{{ imageStudioLanguage === 'zh' ? '原图优先' : 'Prefer paper originals' }}</option><option value="ai-only">{{ imageStudioLanguage === 'zh' ? '仅 AI 图片' : 'AI images only' }}</option></select></label>
+                                <label class="form-field image-editor__source"><span class="form-field__label">{{ imageStudioLanguage === 'zh' ? '参考图模式' : 'Reference mode' }}</span><select v-model="imageGenerationOptions.referenceMode"><option value="auto">{{ imageStudioLanguage === 'zh' ? '使用合适的论文原图' : 'Use suitable original images' }}</option><option value="off">{{ imageStudioLanguage === 'zh' ? '仅使用文字' : 'Text only' }}</option></select></label>
+                                <label class="form-field image-editor__source"><span class="form-field__label">{{ imageStudioLanguage === 'zh' ? '生成方式' : 'Generation model' }}</span><select v-model="imageGenerationOptions.imageProviderMode"><option value="dual">{{ imageStudioLanguage === 'zh' ? '云端模型 + ComfyUI' : 'Cloud generator + ComfyUI' }}</option><option value="qwen">{{ imageStudioLanguage === 'zh' ? '设置中选择的云端模型' : 'Selected cloud generator' }}</option><option value="comfyui">ComfyUI</option><option value="automatic">{{ imageStudioLanguage === 'zh' ? '自动选择' : 'Automatic' }}</option></select></label>
+                                <label class="form-field image-editor__source"><span class="form-field__label">{{ imageStudioLanguage === 'zh' ? '生成比例' : 'Output ratio' }}</span><select v-model="imageGenerationOptions.outputAspectRatio"><option value="website-3:2">{{ imageStudioLanguage === 'zh' ? '网站横图 3:2' : 'Website 3:2' }}</option><option value="xiaohongshu-3:4">{{ imageStudioLanguage === 'zh' ? '小红书竖图 3:4' : 'Xiaohongshu 3:4' }}</option><option value="square-1:1">{{ imageStudioLanguage === 'zh' ? '方形 1:1' : 'Square 1:1' }}</option><option value="wide-16:9">{{ imageStudioLanguage === 'zh' ? '宽屏 16:9' : 'Widescreen 16:9' }}</option></select></label>
+                            </div>
+                            <div class="publication-image-studio__actions">
+                                <button class="primary-btn small" type="button" :disabled="aiCoverGenerationLoading || pdfUploadLoading" @click="generateAiCoverCandidates">
+                                    {{ aiCoverGenerationLoading ? (siteLanguage === 'zh' ? '正在生成图片...' : 'Generating images...') : (aiCoverCandidates.length ? (siteLanguage === 'zh' ? '重新生成图片' : 'Regenerate images') : (siteLanguage === 'zh' ? '生成候选图片' : 'Generate image candidates')) }}
+                                </button>
+                                <button v-if="aiCoverCandidates.length" class="ghost-btn small" type="button" @click="clearAiCoverCandidates">{{ siteLanguage === 'zh' ? '清空候选图' : 'Clear candidates' }}</button>
+                            </div>
+                            <div v-if="aiCoverGenerationLoading" class="task-progress task-progress--generation" aria-live="polite">
+                                <div class="task-progress__row"><span>{{ aiCoverGenerationStage }}</span><strong>{{ siteLanguage === 'zh' ? '约 ' : '~' }}{{ aiCoverGenerationProgress }}%</strong></div>
+                                <div class="task-progress__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="aiCoverGenerationProgress"><span :style="{ width: `${aiCoverGenerationProgress}%` }"></span></div>
+                                <p class="muted">{{ siteLanguage === 'zh' ? '生成任务已在后台运行。可以停留在本页，手机请勿锁屏或刷新。' : 'Generation is running in the background. Keep this page open and avoid refreshing.' }}</p>
+                            </div>
+                            <p v-if="aiCoverGenerationResult" class="muted">{{ aiCoverStatusLabel(aiCoverGenerationResult) }}</p>
+                            <div v-if="aiCoverCandidates.length" class="ai-cover-preview-toolbar" aria-label="Candidate preview view">
+                                <button class="ghost-btn small" :class="{ active: aiCoverPreviewMode === 'website' }" type="button" @click="setAiCoverPreviewMode('website')">{{ siteLanguage === 'zh' ? '原图' : 'Original image' }}</button>
+                                <button class="ghost-btn small" :class="{ active: aiCoverPreviewMode === 'social' }" type="button" @click="setAiCoverPreviewMode('social')">{{ siteLanguage === 'zh' ? '模板封面' : 'Template cover' }}</button>
+                            </div>
+                            <div v-if="aiCoverCandidates.length" class="ai-cover-preview-toolbar" aria-label="Candidate source filter">
+                                <button class="ghost-btn small" :class="{ active: aiCoverCandidateFilter === 'all' }" type="button" @click="aiCoverCandidateFilter = 'all'">All {{ aiCoverCandidates.length }}</button>
+                                <button class="ghost-btn small" :class="{ active: aiCoverCandidateFilter === 'source' }" type="button" @click="aiCoverCandidateFilter = 'source'">Paper originals {{ sourceAiCoverCandidates.length }}</button>
+                                <button class="ghost-btn small" :class="{ active: aiCoverCandidateFilter === 'generated' }" type="button" @click="aiCoverCandidateFilter = 'generated'">AI images {{ generatedAiCoverCandidates.length }}</button>
+                            </div>
+                            <div v-if="sourceAiCoverCandidates.length" class="ai-cover-preview-toolbar" aria-label="Original paper image selector">
+                                <label class="form-field image-editor__source"><span class="form-field__label">Paper original</span><select v-model="selectedSourceCandidateId"><option v-for="(candidate, sourceIndex) in sourceAiCoverCandidates" :key="candidate.candidateId || candidate.imageUrl" :value="candidate.candidateId || candidate.imageUrl">{{ sourceCandidateOptionLabel(candidate, sourceIndex) }}</option></select></label>
+                                <button class="primary-btn small" type="button" :disabled="aiCoverSelectionLoading || !selectedSourceAiCoverCandidate || isSelectedAiCoverCandidate(selectedSourceAiCoverCandidate)" @click="selectAiCoverCandidate(selectedSourceAiCoverCandidate)">{{ isSelectedAiCoverCandidate(selectedSourceAiCoverCandidate) ? (siteLanguage === 'zh' ? '已选为网站图片' : 'Selected for website') : (siteLanguage === 'zh' ? '使用选中的原图' : 'Use selected original') }}</button>
+                            </div>
+                            <div v-if="aiCoverCandidates.length" class="ai-cover-candidate-grid publication-image-studio__grid">
+                                <article
+                                    v-for="(candidate, index) in visibleAiCoverCandidates"
+                                    :key="candidate.candidateId || candidate.imageUrl"
+                                    class="ai-cover-candidate-card"
+                                    :class="{ recommended: isRankedAiCoverRecommendation(candidate), selected: isSelectedAiCoverCandidate(candidate) }"
+                                >
+                                    <div class="ai-cover-candidate-card__image" :class="{ 'social-preview': aiCoverPreviewMode === 'social' }" @click="syncCoverEditorCandidate(candidate)">
+                                        <img :src="resolveAsset(candidatePreviewUrl(candidate))" :alt="`Publication image candidate ${index + 1}`">
+                                        <span v-if="isRankedAiCoverRecommendation(candidate)" class="ai-cover-candidate-card__badge">Recommended</span>
+                                        <span v-if="isSelectedAiCoverCandidate(candidate)" class="ai-cover-candidate-card__badge selected">Selected cover</span>
+                                    </div>
+                                    <div class="ai-cover-candidate-card__body">
+                                        <h4>Candidate {{ index + 1 }}</h4>
+                                        <span class="ai-cover-candidate-source">{{ candidateSourceLabel(candidate) }}</span>
+                                        <p v-if="candidate.recommendationReason" class="ai-cover-candidate-reason">{{ candidate.recommendationReason }}</p>
+                                        <div class="ai-cover-downloads">
+                                            <a class="ghost-btn small ai-cover-download" :href="resolveAsset(candidate.imageUrl)" :download="`publication-${editingPostId}-candidate-${index + 1}-original.jpg`">{{ siteLanguage === 'zh' ? '下载生成图片' : 'Download generated image' }}</a>
+                                            <a v-if="candidate.socialCoverUrl" class="ghost-btn small ai-cover-download" :href="resolveAsset(candidate.socialCoverUrl)" :download="`publication-${editingPostId}-candidate-${index + 1}-template.jpg`">{{ siteLanguage === 'zh' ? '下载模板封面' : 'Download template cover' }}</a>
+                                        </div>
+                                        <button class="primary-btn small" type="button" :disabled="aiCoverSelectionLoading || isSelectedAiCoverCandidate(candidate)" @click="selectAiCoverCandidate(candidate)">
+                                            {{ isSelectedAiCoverCandidate(candidate) ? (siteLanguage === 'zh' ? '已选为网站图片' : 'Selected for website') : (siteLanguage === 'zh' ? '用于网站' : 'Use for website') }}
+                                        </button>
+                                    </div>
+                                </article>
+                            </div>
+                            <section v-if="aiCoverCandidates.length" class="publication-form-block xhs-cover-editor">
+                                <div class="section-head compact">
+                                    <div><p class="eyebrow dark">{{ siteLanguage === 'zh' ? '小红书封面' : 'Xiaohongshu Cover' }}</p><h3>{{ siteLanguage === 'zh' ? '编辑标题和模板颜色' : 'Edit title and template colors' }}</h3></div>
+                                </div>
+                                <div class="xhs-cover-editor__controls">
+                                    <label class="form-field"><span class="form-field__label">{{ siteLanguage === 'zh' ? '模板中的图片' : 'Image in template' }}</span><select v-model="xhsCoverForm.imageUrl" @change="xhsCoverResultUrl = ''"><option v-for="candidate in aiCoverCandidates" :key="candidate.imageUrl" :value="candidate.imageUrl">{{ candidateSourceLabel(candidate) }} - {{ candidate.candidateId }}</option></select></label>
+                                    <label class="form-field xhs-cover-editor__headline"><span class="form-field__label">{{ siteLanguage === 'zh' ? '封面标题' : 'Cover headline' }}</span><input v-model.trim="xhsCoverForm.headline" type="text" maxlength="88" :disabled="!xhsCoverForm.showTitle" @input="xhsCoverResultUrl = ''"></label>
+                                    <label class="xhs-cover-editor__toggle"><input v-model="xhsCoverForm.showTitle" type="checkbox" @change="xhsCoverResultUrl = ''"><span>{{ siteLanguage === 'zh' ? '显示标题' : 'Show title' }}</span></label>
+                                    <label class="form-field image-editor__color"><span class="form-field__label">{{ siteLanguage === 'zh' ? '标题文字颜色' : 'Headline color' }}</span><input v-model="xhsCoverForm.textColor" type="color" @input="xhsCoverResultUrl = ''"><span>{{ xhsCoverForm.textColor }}</span></label>
+                                    <label class="form-field image-editor__color"><span class="form-field__label">{{ siteLanguage === 'zh' ? '模板底色' : 'Template color' }}</span><input v-model="xhsCoverForm.backgroundColor" type="color" @input="xhsCoverResultUrl = ''"><span>{{ xhsCoverForm.backgroundColor }}</span></label>
+                                    <label class="form-field"><span class="form-field__label">{{ siteLanguage === 'zh' ? '模板预设' : 'Template preset' }}</span><select v-model="xhsCoverForm.templatePreset" @change="xhsCoverResultUrl = ''"><option value="classic">{{ siteLanguage === 'zh' ? '经典：图片 + 标题' : 'Classic: image + title' }}</option><option value="image-focus">{{ siteLanguage === 'zh' ? '图片突出：大图布局' : 'Image focus: large image' }}</option><option value="text-focus">{{ siteLanguage === 'zh' ? '文字突出：标题海报' : 'Text focus: title poster' }}</option></select></label>
+                                </div>
+                                <div class="xhs-cover-editor__preview"
+                                     :class="[`preset-${xhsCoverForm.templatePreset}`, { 'title-hidden': !xhsCoverForm.showTitle }]"
+                                     :style="{ '--xhs-template-bg': xhsCoverForm.backgroundColor, '--xhs-template-text': xhsCoverForm.textColor }">
+                                    <div class="xhs-cover-editor__preview-image">
+                                        <img :src="resolveAsset(xhsCoverPreviewUrl())" :alt="siteLanguage === 'zh' ? '模板中的候选图片' : 'Candidate image in template'">
+                                    </div>
+                                    <div class="xhs-cover-editor__preview-panel">
+                                        <template v-if="xhsCoverForm.showTitle">
+                                            <span class="xhs-cover-editor__preview-accent" aria-hidden="true"></span>
+                                            <span class="xhs-cover-editor__preview-label">{{ siteLanguage === 'zh' ? '论文解读' : 'PAPER INSIGHT' }}</span>
+                                            <strong class="xhs-cover-editor__preview-title">{{ xhsCoverForm.headline }}</strong>
+                                            <span class="xhs-cover-editor__preview-footer">{{ siteLanguage === 'zh' ? 'AI/模板编辑 · 请人工核验' : 'AI/template edit · review before publishing' }}</span>
+                                        </template>
+                                    </div>
+                                </div>
+                                <div class="publication-image-studio__actions">
+                                    <button class="primary-btn small" type="button" :disabled="xhsCoverEditorLoading || !xhsCoverForm.imageUrl" @click="createCustomXhsCover">{{ xhsCoverEditorLoading ? (siteLanguage === 'zh' ? '正在生成...' : 'Creating...') : (siteLanguage === 'zh' ? '生成编辑后的封面' : 'Create edited cover') }}</button>
+                                    <a v-if="xhsCoverResultUrl" class="ghost-btn small" :href="resolveAsset(xhsCoverResultUrl)" :download="`publication-${editingPostId}-custom-xiaohongshu.jpg`">{{ siteLanguage === 'zh' ? '下载编辑后的封面' : 'Download edited cover' }}</a>
+                                </div>
+                                <p class="form-field__hint">{{ siteLanguage === 'zh' ? '这里直接编辑模板本身：颜色会同时作用于图片留白和标题区，不会再把旧模板当背景叠加。结果另存为新文件。' : 'This edits the template layers directly. The color applies to image padding and the title panel; no flattened template is reused as a background.' }}</p>
+                            </section>
+                            <section v-if="aiCoverCandidates.length" class="publication-form-block image-editor">
+                                <div class="section-head compact">
+                                    <div><p class="eyebrow dark">{{ siteLanguage === 'zh' ? '图片编辑器' : 'Image Editor' }}</p><h3>{{ siteLanguage === 'zh' ? '裁剪、拉伸和调整尺寸' : 'Crop, stretch and resize' }}</h3></div>
+                                </div>
+                                <div class="image-editor__toolbar">
+                                    <label class="form-field image-editor__source"><span class="form-field__label">{{ siteLanguage === 'zh' ? '图片' : 'Image' }}</span><select v-model="imageVariantForm.imageUrl"><option v-for="candidate in aiCoverCandidates" :key="candidate.imageUrl" :value="candidate.imageUrl">{{ candidateSourceLabel(candidate) }} - {{ candidate.candidateId }}</option></select></label>
+                                    <div class="image-editor__modes" role="group" aria-label="Image fitting mode">
+                                        <button type="button" :class="{ active: imageVariantForm.mode === 'smart' }" @click="setImageVariantMode('smart')">{{ siteLanguage === 'zh' ? '智能' : 'Smart' }}</button>
+                                        <button type="button" :class="{ active: imageVariantForm.mode === 'cover' }" @click="setImageVariantMode('cover')">{{ siteLanguage === 'zh' ? '裁剪' : 'Crop' }}</button>
+                                        <button type="button" :class="{ active: imageVariantForm.mode === 'contain' }" @click="setImageVariantMode('contain')">{{ siteLanguage === 'zh' ? '完整适配' : 'Fit' }}</button>
+                                        <button type="button" :class="{ active: imageVariantForm.mode === 'stretch' }" @click="setImageVariantMode('stretch')">{{ siteLanguage === 'zh' ? '拉伸' : 'Stretch' }}</button>
+                                    </div>
+                                </div>
+                                <div class="image-editor__workspace">
+                                    <div class="image-editor__stage-shell">
+                                        <div ref="imageVariantStage" class="image-editor__stage"
+                                             :class="{ 'smart-active': imageVariantForm.mode === 'smart', 'crop-active': imageVariantForm.mode === 'cover', 'stretch-active': imageVariantForm.mode === 'stretch' }"
+                                             :style="{ aspectRatio: imageVariantStageAspect, backgroundColor: imageVariantForm.backgroundColor }"
+                                             @pointerdown="beginImageVariantFocus">
+                                            <img v-if="imageVariantForm.imageUrl && imageVariantForm.mode !== 'stretch'" :src="resolveAsset(imageVariantForm.imageUrl)" alt="Edited image preview" :style="imageVariantPreviewStyle" @load="captureImageVariantDimensions">
+                                            <span v-else class="muted">{{ siteLanguage === 'zh' ? '请选择候选图片' : 'Choose a candidate image' }}</span>
+                                            <div v-if="imageVariantForm.mode === 'smart'" class="image-editor__focus" :style="{ left: imageVariantForm.focusX + '%', top: imageVariantForm.focusY + '%' }"></div>
+
+                                            <div v-if="imageVariantForm.mode === 'cover' && imageVariantForm.imageUrl" class="image-editor__crop-box" :style="imageVariantCropStyle" @pointerdown="beginImageCropInteraction($event, 'move')">
+                                                <div class="image-editor__crop-grid" aria-hidden="true"></div>
+                                                <button type="button" class="image-editor__handle handle--nw" aria-label="Resize crop from top left" @pointerdown.stop="beginImageCropInteraction($event, 'nw')"></button>
+                                                <button type="button" class="image-editor__handle handle--n" aria-label="Resize crop from top" @pointerdown.stop="beginImageCropInteraction($event, 'n')"></button>
+                                                <button type="button" class="image-editor__handle handle--ne" aria-label="Resize crop from top right" @pointerdown.stop="beginImageCropInteraction($event, 'ne')"></button>
+                                                <button type="button" class="image-editor__handle handle--e" aria-label="Resize crop from right" @pointerdown.stop="beginImageCropInteraction($event, 'e')"></button>
+                                                <button type="button" class="image-editor__handle handle--se" aria-label="Resize crop from bottom right" @pointerdown.stop="beginImageCropInteraction($event, 'se')"></button>
+                                                <button type="button" class="image-editor__handle handle--s" aria-label="Resize crop from bottom" @pointerdown.stop="beginImageCropInteraction($event, 's')"></button>
+                                                <button type="button" class="image-editor__handle handle--sw" aria-label="Resize crop from bottom left" @pointerdown.stop="beginImageCropInteraction($event, 'sw')"></button>
+                                                <button type="button" class="image-editor__handle handle--w" aria-label="Resize crop from left" @pointerdown.stop="beginImageCropInteraction($event, 'w')"></button>
+                                            </div>
+
+                                            <div v-if="imageVariantForm.mode === 'stretch' && imageVariantForm.imageUrl" class="image-editor__transform-box" :style="imageVariantStretchBoxStyle">
+                                                <img :src="resolveAsset(imageVariantForm.imageUrl)" alt="Stretch image preview" :style="imageVariantPreviewStyle" draggable="false" @dragstart.prevent @load="captureImageVariantDimensions">
+                                                <button type="button" class="image-editor__handle image-editor__resize-handle handle--nw" :class="{ 'is-active': imageEditorResizeDirection === 'nw' }" aria-label="Stretch from top left" @pointerdown.stop.prevent="beginImageStageResize($event, 'nw')"></button>
+                                                <button type="button" class="image-editor__handle image-editor__resize-handle handle--n" :class="{ 'is-active': imageEditorResizeDirection === 'n' }" aria-label="Stretch from top" @pointerdown.stop.prevent="beginImageStageResize($event, 'n')"></button>
+                                                <button type="button" class="image-editor__handle image-editor__resize-handle handle--ne" :class="{ 'is-active': imageEditorResizeDirection === 'ne' }" aria-label="Stretch from top right" @pointerdown.stop.prevent="beginImageStageResize($event, 'ne')"></button>
+                                                <button type="button" class="image-editor__handle image-editor__resize-handle handle--e" :class="{ 'is-active': imageEditorResizeDirection === 'e' }" aria-label="Stretch from right" @pointerdown.stop.prevent="beginImageStageResize($event, 'e')"></button>
+                                                <button type="button" class="image-editor__handle image-editor__resize-handle handle--se" :class="{ 'is-active': imageEditorResizeDirection === 'se' }" aria-label="Stretch from bottom right" @pointerdown.stop.prevent="beginImageStageResize($event, 'se')"></button>
+                                                <button type="button" class="image-editor__handle image-editor__resize-handle handle--s" :class="{ 'is-active': imageEditorResizeDirection === 's' }" aria-label="Stretch from bottom" @pointerdown.stop.prevent="beginImageStageResize($event, 's')"></button>
+                                                <button type="button" class="image-editor__handle image-editor__resize-handle handle--sw" :class="{ 'is-active': imageEditorResizeDirection === 'sw' }" aria-label="Stretch from bottom left" @pointerdown.stop.prevent="beginImageStageResize($event, 'sw')"></button>
+                                                <button type="button" class="image-editor__handle image-editor__resize-handle handle--w" :class="{ 'is-active': imageEditorResizeDirection === 'w' }" aria-label="Stretch from left" @pointerdown.stop.prevent="beginImageStageResize($event, 'w')"></button>
+                                            </div>
+                                        </div>
+                                        <p v-if="imageVariantForm.mode === 'cover'" class="form-field__hint">{{ siteLanguage === 'zh' ? '拖动白色裁剪框或八个控制点调整裁剪区域。' : 'Drag the white crop frame or any of its eight handles directly on the image.' }}</p>
+                                        <p v-else-if="imageVariantForm.mode === 'stretch'" class="form-field__hint">{{ siteLanguage === 'zh' ? '拖动边缘或角点拉伸图片并改变输出尺寸。' : 'Drag an edge or corner handle to stretch the image and change its output dimensions.' }}</p>
+                                        <p v-else-if="imageVariantForm.mode === 'smart'" class="form-field__hint">{{ siteLanguage === 'zh' ? '点击或拖动图片选择自动裁剪的焦点。' : 'Click or drag on the image to choose the focal point for automatic cropping.' }}</p>
+                                        <p v-else class="form-field__hint">{{ siteLanguage === 'zh' ? '完整保留图片，并使用所选背景色填充空白区域。原文件不会被覆盖。' : 'The whole image is retained and padding uses the selected background color. The original file is never overwritten.' }}</p>
+                                    </div>
+                                    <div class="image-editor__controls">
+                                        <div class="image-editor__presets">
+                                            <button class="ghost-btn small" :class="{ active: isImageVariantPreset(900, 600) }" type="button" @click="setImageVariantPreset(900, 600)">Website 3:2</button>
+                                            <button class="ghost-btn small" :class="{ active: isImageVariantPreset(1242, 1656) }" type="button" @click="setImageVariantPreset(1242, 1656)">Xiaohongshu 3:4</button>
+                                            <button class="ghost-btn small" :class="{ active: isImageVariantPreset(1080, 1080) }" type="button" @click="setImageVariantPreset(1080, 1080)">Square 1:1</button>
+                                            <button class="ghost-btn small" :class="{ active: isImageVariantPreset(1600, 900) }" type="button" @click="setImageVariantPreset(1600, 900)">Wide 16:9</button>
+                                        </div>
+                                        <button v-if="imageVariantForm.mode === 'cover'" class="ghost-btn small" type="button" @click="resetImageVariantCrop">{{ siteLanguage === 'zh' ? '重置裁剪框' : 'Reset crop frame' }}</button>
+                                        <button v-if="imageVariantForm.mode === 'stretch'" class="ghost-btn small" type="button" @click="resetImageVariantStretchBox">{{ siteLanguage === 'zh' ? '重置拉伸框' : 'Reset stretch frame' }}</button>
+                                        <div class="image-editor__dimensions">
+                                            <label class="form-field"><span class="form-field__label">{{ siteLanguage === 'zh' ? '宽度' : 'Width' }}</span><input v-model.number="imageVariantForm.width" type="number" min="256" max="2400" @change="imageVariantForm.mode === 'stretch' && fitImageStretchBoxToOutput()"></label>
+                                            <label class="form-field"><span class="form-field__label">{{ siteLanguage === 'zh' ? '高度' : 'Height' }}</span><input v-model.number="imageVariantForm.height" type="number" min="256" max="2400" @change="imageVariantForm.mode === 'stretch' && fitImageStretchBoxToOutput()"></label>
+                                        </div>
+                                        <template v-if="imageVariantForm.mode === 'smart'">
+                                            <label class="form-field"><span class="form-field__label">{{ siteLanguage === 'zh' ? '水平焦点' : 'Horizontal focus' }}: {{ imageVariantForm.focusX }}%</span><input v-model.number="imageVariantForm.focusX" type="range" min="0" max="100"></label>
+                                            <label class="form-field"><span class="form-field__label">{{ siteLanguage === 'zh' ? '垂直焦点' : 'Vertical focus' }}: {{ imageVariantForm.focusY }}%</span><input v-model.number="imageVariantForm.focusY" type="range" min="0" max="100"></label>
+                                        </template>
+                                        <p v-if="imageVariantForm.mode === 'cover'" class="image-editor__crop-values">Crop: {{ imageVariantForm.cropWidth }}% × {{ imageVariantForm.cropHeight }}% · X {{ imageVariantForm.cropX }}% · Y {{ imageVariantForm.cropY }}%</p>
+                                        <label class="form-field image-editor__color"><span class="form-field__label">{{ siteLanguage === 'zh' ? '背景 / 留白' : 'Background / padding' }}</span><input v-model="imageVariantForm.backgroundColor" type="color"><span>{{ imageVariantForm.backgroundColor }}</span></label>
+                                        <button class="primary-btn small" type="button" :disabled="imageVariantLoading || !imageVariantForm.imageUrl" @click="deriveCoverImage">{{ imageVariantLoading ? (siteLanguage === 'zh' ? '正在生成...' : 'Creating...') : (siteLanguage === 'zh' ? '生成编辑后的图片' : 'Create edited candidate') }}</button>
+                                    </div>
+                                </div>
+                            </section>                        </template>
+                    </section>
+
+                    <div class="request-actions">
+                        <button class="primary-btn" type="submit">{{ publishPrimaryLabel }}</button>
+                        <button v-if="canSubmitForReview" class="ghost-btn" type="button" @click="submitCurrentPostForReview">Submit for review</button>
+                        <button v-if="editingPostId" class="ghost-btn" type="button" @click="resetPostEditor">New draft</button>
+                    </div>
+                </form>
+
+                <aside class="card guide-card">
+                    <h3>{{ siteLanguage === 'zh' ? '生成前检查' : 'Before generating' }}</h3>
+                    <ul class="guide-list">
+                        <li>{{ siteLanguage === 'zh' ? '上传 PDF，并确认标题和摘要准确。' : 'Upload the PDF and verify the title and abstract.' }}</li>
+                        <li>{{ siteLanguage === 'zh' ? '在设置中配置文字与图片供应商。' : 'Configure text and image providers in Settings.' }}</li>
+                        <li>{{ siteLanguage === 'zh' ? '保存论文后生成文案和候选图片。' : 'Save once, then generate copy and image candidates.' }}</li>
+                    </ul>
+                </aside>
+            </div>
+        </section>
+
+        <section v-show="currentView === 'settings'" class="view-stack">
+            <div class="section-head">
+                <div>
+                    <p class="eyebrow dark">{{ siteLanguage === 'zh' ? '设置' : 'Settings' }}</p>
+                    <h2>{{ siteLanguage === 'zh' ? 'AI 供应商与密钥' : 'AI providers and keys' }}</h2>
+                    <p class="muted">{{ siteLanguage === 'zh' ? '密钥仅属于当前账号，保存后不会再次显示。' : 'Keys are private to the signed-in account and are never shown again after saving.' }}</p>
+                </div>
+            </div>
+            <div v-if="!currentUser" class="card empty-state">{{ siteLanguage === 'zh' ? '请登录后配置 AI 供应商密钥。' : 'Sign in to configure your AI provider keys.' }}</div>
+            <div v-else>
+                <div class="site-language-bar">
+                    <span>{{ siteLanguage === 'zh' ? '网站语言' : 'Language' }}</span>
+                    <div class="site-language-toggle" role="group" aria-label="Website language">
+                        <button type="button" :class="{ active: siteLanguage === 'zh' }" @click="applySiteLanguage('zh')">中文</button>
+                        <button type="button" :class="{ active: siteLanguage === 'en' }" @click="applySiteLanguage('en')">EN</button>
+                    </div>
+                </div>
+                <div v-if="providerSettings.platformManaged" class="card platform-ai-settings-notice">
+                    <strong>{{ siteLanguage === 'zh' ? '测试平台已提供 AI 服务' : 'AI services are provided by the test platform' }}</strong>
+                    <p class="muted">{{ siteLanguage === 'zh' ? '本次测试统一使用平台配置的论文理解、文案和图片生成服务，无需填写个人 API Key。' : 'This test uses the platform-configured paper understanding, copywriting, and image services. No personal API key is required.' }}</p>
+                </div>
+                <div v-else class="settings-grid">
+                <section class="card deepseek-key-settings">
+                    <div class="deepseek-key-settings__copy">
+                        <div class="deepseek-key-settings__heading">
+                            <strong>{{ siteLanguage === 'zh' ? '论文理解与文案生成' : 'Text understanding and copy' }}</strong>
+                            <span class="deepseek-key-status" :class="{ configured: providerSettings.textConfigured }">{{ providerSettings.textConfigured ? (siteLanguage === 'zh' ? '已配置' : 'Configured') : (siteLanguage === 'zh' ? '需要密钥' : 'Key required') }}</span>
+                        </div>
+                        <p class="muted">{{ siteLanguage === 'zh' ? '用于基于论文证据的理解与传播文案生成。' : 'Used for evidence-grounded paper understanding and social-copy generation.' }}</p>
+                    </div>
+                    <div class="deepseek-key-settings__controls">
+                        <select v-model="textProviderInput" @change="syncTextProviderModel">
+                            <option value="deepseek">DeepSeek</option>
+                            <option value="openai">OpenAI</option>
+                            <option value="doubao">Doubao / Volcengine Ark</option>
+                        </select>
+                        <select v-model="textProviderModelInput" aria-label="Text model"><option v-for="model in textProviderModelOptions" :key="model" :value="model">{{ model }}</option></select>
+                        <input v-model="textProviderApiKeyInput" type="password" autocomplete="new-password" spellcheck="false" :placeholder="siteLanguage === 'zh' ? `输入你的 ${textProviderLabel} API Key` : `Enter your ${textProviderLabel} API key`" @keyup.enter="saveTextProvider">
+                        <button class="primary-btn small" type="button" :disabled="providerSettingsSaving || !textProviderApiKeyInput.trim()" @click="saveTextProvider">{{ providerSettingsSaving ? (siteLanguage === 'zh' ? '保存中...' : 'Saving...') : (siteLanguage === 'zh' ? '保存文字供应商' : 'Save text provider') }}</button>
+                        <button v-if="providerSettings.textConfigured" class="ghost-btn small" type="button" :disabled="providerSettingsSaving" @click="clearProvider('text')">{{ siteLanguage === 'zh' ? '清除' : 'Clear' }}</button>
+                    </div>
+                </section>
+                <section class="card deepseek-key-settings">
+                    <div class="deepseek-key-settings__copy">
+                        <div class="deepseek-key-settings__heading">
+                            <strong>{{ siteLanguage === 'zh' ? '云端图片生成' : 'Cloud image generation' }}</strong>
+                            <span class="deepseek-key-status" :class="{ configured: providerSettings.imageConfigured }">{{ providerSettings.imageConfigured ? (siteLanguage === 'zh' ? '已配置' : 'Configured') : (siteLanguage === 'zh' ? '需要密钥' : 'Key required') }}</span>
+                        </div>
+                        <p class="muted">{{ siteLanguage === 'zh' ? '所选云端模型可以在双模型模式下与本地 ComfyUI 配合使用。' : 'The selected cloud generator can be paired with local ComfyUI in dual mode.' }}</p>
+                    </div>
+                    <div class="deepseek-key-settings__controls">
+                        <select v-model="imageProviderInput" @change="syncImageProviderModel">
+                            <option value="qwen">Qwen Image</option>
+                            <option value="openai">OpenAI Image</option>
+                            <option value="doubao">Doubao Seedream</option>
+                            <option value="comfyui">Local ComfyUI only</option>
+                        </select>
+                        <select v-model="imageProviderModelInput" aria-label="Image model"><option v-for="model in imageProviderModelOptions" :key="model" :value="model">{{ model === 'custom-ark-endpoint' ? 'Seedream 5.0 / custom Ark endpoint' : model }}</option></select>
+                        <input v-if="imageProviderInput === 'doubao' && imageProviderModelInput === 'custom-ark-endpoint'" v-model="imageProviderCustomModelInput" type="text" autocomplete="off" spellcheck="false" :placeholder="siteLanguage === 'zh' ? '输入 Ark endpoint ID（ep-...）' : 'Enter your Ark endpoint ID (ep-...)'" aria-label="Custom Ark endpoint ID">
+                        <input v-if="imageProviderInput !== 'comfyui'" v-model="imageProviderApiKeyInput" type="password" autocomplete="new-password" spellcheck="false" :placeholder="siteLanguage === 'zh' ? `输入你的 ${imageProviderLabel} API Key` : `Enter your ${imageProviderLabel} API key`" @keyup.enter="saveImageProvider">
+                        <button class="primary-btn small" type="button" :disabled="providerSettingsSaving || (imageProviderInput !== 'comfyui' && !imageProviderApiKeyInput.trim())" @click="saveImageProvider">{{ providerSettingsSaving ? (siteLanguage === 'zh' ? '保存中...' : 'Saving...') : (siteLanguage === 'zh' ? '保存图片供应商' : 'Save image provider') }}</button>
+                        <button v-if="providerSettings.imageConfigured" class="ghost-btn small" type="button" :disabled="providerSettingsSaving" @click="clearProvider('image')">{{ siteLanguage === 'zh' ? '清除' : 'Clear' }}</button>
+                    </div>
+                </section>
+                </div>
+            </div>
+        </section>
+        <section v-show="currentView === 'profile'" class="view-stack">
+            <div class="section-head">
+                <div>
+                    <p class="eyebrow dark">Personal Workspace</p>
+                    <h2>Profile, likes, submissions, and requests</h2>
+                </div>
+            </div>
+
+            <div v-if="!currentUser" class="card empty-state">
+                Create an account to open your personal workspace, save liked publications, and manage contributor access.
+            </div>
+
+            <template v-else>
+                <div class="profile-shell">
+                    <section class="card profile-hero">
+                        <div class="profile-hero__main">
+                            <div class="profile-identity">
+                                <div v-if="currentUser.avatarUrl" class="profile-avatar profile-avatar--image">
+                                    <img :src="resolveAsset(currentUser.avatarUrl)" :alt="`${translateNickname(currentUser.nickname)} avatar`">
+                                </div>
+                                <div v-else class="profile-avatar">{{ userInitials(currentUser.nickname) }}</div>
+                            </div>
+                            <div class="profile-heading">
+                                <p class="eyebrow dark">{{ profileIdentityHeading }}</p>
+                                <div class="profile-heading__title">
+                                    <h2>{{ translateNickname(currentUser.nickname) }}</h2>
+                                </div>
+                                <p class="muted">{{ profileIdentityLabel }}</p>
+                                <div class="request-actions">
+                                    <button class="ghost-btn small" type="button" @click="openProfileEditor('profile')">Modify profile</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="profile-hero__stats">
+                            <div v-if="canAccessContributorWorkspace">
+                                <strong>{{ profileSummary.published }}</strong>
+                                <span>Published</span>
+                            </div>
+                            <div v-if="canAccessContributorWorkspace">
+                                <strong>{{ profileSummary.pending }}</strong>
+                                <span>Pending</span>
+                            </div>
+                            <div v-if="canAccessContributorWorkspace">
+                                <strong>{{ profileSummary.drafts }}</strong>
+                                <span>Drafts</span>
+                            </div>
+                            <div>
+                                <strong>{{ profileSummary.liked }}</strong>
+                                <span>Liked</span>
+                            </div>
+                            <div>
+                                <strong>{{ profileSummary.requests }}</strong>
+                                <span>Requests</span>
+                            </div>
+                        </div>
+                    </section>
+                    <aside class="card profile-bio-card">
+                        <p class="eyebrow dark">Personal Bio</p>
+                        <h3>Introduction</h3>
+                        <p class="muted profile-bio-copy">{{ currentUser.bio ? currentUser.bio : 'Add a short introduction so other readers can understand your focus and interests.' }}</p>
+                    </aside>
+                </div>
+
+                <section v-if="profileEditingMode" class="card profile-edit-card">
+                    <div class="section-head compact">
+                        <div>
+                            <p class="eyebrow dark">Profile Settings</p>
+                            <h3>Update profile</h3>
+                        </div>
+                    </div>
+                    <div class="profile-edit-tabs">
+                        <button class="tab-btn" :class="{ active: profileEditTab === 'profile' }" type="button" @click="selectProfileEditTab('profile')">Profile</button>
+                        <button class="tab-btn" :class="{ active: profileEditTab === 'password' }" type="button" @click="selectProfileEditTab('password')">Password</button>
+                    </div>
+                    <div v-if="profileEditTab === 'profile'" class="profile-edit-grid">
+                        <div class="profile-avatar-editor">
+                            <div v-if="profileForm.avatarUrl" class="profile-avatar profile-avatar--image profile-avatar--editor">
+                                <img :src="resolveAsset(profileForm.avatarUrl)" :alt="`${translateNickname(profileForm.nickname || currentUser.nickname)} avatar preview`">
+                            </div>
+                            <div v-else class="profile-avatar profile-avatar--editor">{{ userInitials(profileForm.nickname || currentUser.nickname) }}</div>
+                            <div class="request-actions">
+                                <button class="ghost-btn small" type="button" @click="triggerFilePicker('profileAvatarInput')">Upload avatar</button>
+                                <button v-if="profileForm.avatarUrl" class="ghost-btn small" type="button" @click="clearProfileAvatar">Remove avatar</button>
+                                <input ref="profileAvatarInput" class="sr-only" type="file" accept="image/*" @change="handleProfileAvatarUpload">
+                            </div>
+                            <p class="muted">{{ profileAvatarFileLabel }}</p>
+                        </div>
+                        <form class="profile-edit-form" @submit.prevent="saveProfile">
+                            <label>
+                                Display Name
+                                <input v-model="profileForm.nickname" type="text" maxlength="50" placeholder="How your name appears across the archive">
+                            </label>
+                            <label>
+                                Personal Bio
+                                <textarea v-model="profileForm.bio" rows="5" placeholder="Share your background, research interests, or publication focus."></textarea>
+                            </label>
+                            <p class="muted profile-edit-form__hint">{{ profileBioByteCount }}/500 bytes</p>
+                            <div class="request-actions">
+                                <button class="primary-btn small" type="submit">Save profile</button>
+                                <button class="ghost-btn small" type="button" @click="closeProfileEditor">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div v-else class="profile-password-panel">
+                        <p class="muted">Answer your 3 security questions. At least 2 answers must match exactly.</p>
+                        <div v-if="!hasPasswordChangeQuestions" class="auth-form-grid">
+                            <button class="primary-btn auth-submit auth-submit--center" type="button" @click="loadMyPasswordSecurityQuestions">Load security questions</button>
+                        </div>
+                        <form v-else class="auth-form-grid" @submit.prevent="changeMyPasswordFromProfile">
+                            <label v-for="(question, index) in passwordChangeQuestions" :key="`profile-password-question-${index}`" class="auth-field--full">
+                                Security Question {{ index + 1 }}
+                                <input :value="question.questionText" type="text" readonly>
+                                <input v-model="passwordChangeAnswers[index]" type="text" autocomplete="off" placeholder="Enter your answer exactly as set">
+                            </label>
+                            <label>
+                                New Password
+                                <input v-model="passwordChangeNewPassword" type="password" autocomplete="new-password" placeholder="At least 6 characters">
+                            </label>
+                            <label>
+                                Confirm New Password
+                                <input v-model="passwordChangeConfirmPassword" type="password" autocomplete="new-password" placeholder="Re-enter new password">
+                            </label>
+                            <div class="request-actions">
+                                <button class="primary-btn auth-submit" type="submit">Change password</button>
+                                <button class="ghost-btn small" type="button" @click="closeProfileEditor">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+
+                <div class="tab-row">
+                    <button v-if="canAccessContributorWorkspace" class="tab-btn" :class="{ active: profileSection === 'published' }" type="button" @click="selectProfileSection('published')">Published Publications</button>
+                    <button v-if="canAccessContributorWorkspace" class="tab-btn" :class="{ active: profileSection === 'pending' }" type="button" @click="selectProfileSection('pending')">Pending Review</button>
+                    <button v-if="canAccessContributorWorkspace" class="tab-btn" :class="{ active: profileSection === 'drafts' }" type="button" @click="selectProfileSection('drafts')">Draft Box</button>
+                    <button class="tab-btn" :class="{ active: profileSection === 'liked' }" type="button" @click="selectProfileSection('liked')">Liked Publications</button>
+                    <button v-if="showPermissionRequestModule" class="tab-btn" :class="{ active: profileSection === 'permissions' }" type="button" @click="selectProfileSection('permissions')">Permission Requests</button>
+                </div>
+
+                <div v-if="profileSection === 'published' && canAccessContributorWorkspace" class="list-grid">
+                    <article v-for="entry in profilePublishedPosts" :key="entry.id" class="card entry-card">
+                        <h3>{{ translateText(entry.title) }}</h3>
+                        <p class="muted">{{ paperAuthorsLabel(entry) }}</p>
+                        <p class="muted" v-if="entry.venue || paperYearLabel(entry)">{{ paperYearLabel(entry) }}<span v-if="paperYearLabel(entry) && entry.venue"> - </span>{{ entry.venue }}</p>
+                        <div class="entry-card__meta">
+                            <span>{{ statusLabel(entry.status) }}</span>
+                            <span>{{ entry.commentCount || 0 }} comments</span>
+                            <span>{{ formatShortDate(entry.createdAt) }}</span>
+                        </div>
+                        <div class="request-actions">
+                            <button class="ghost-btn small" type="button" @click="returnPostToDraft(entry)">Modify</button>
+                            <button class="ghost-btn small danger-btn" type="button" @click="deleteMyPost(entry)">Delete</button>
+                        </div>
+                    </article>
+                    <div v-if="!profilePublishedPosts.length" class="card empty-state">No published publications yet.</div>
+                </div>
+
+                <div v-else-if="profileSection === 'pending' && canAccessContributorWorkspace" class="list-grid">
+                    <article v-for="entry in workspacePending" :key="entry.id" class="card entry-card">
+                        <span class="status-chip status-chip--pending-review">{{ statusLabel(entry.status) }}</span>
+                        <h3>{{ translateText(entry.title) }}</h3>
+                        <p class="muted">{{ paperAuthorsLabel(entry) }}</p>
+                        <div class="entry-card__meta">
+                            <span v-if="entry.submittedAt">Submitted {{ formatShortDate(entry.submittedAt) }}</span>
+                            <span>Updated {{ formatShortDate(entry.updatedAt) }}</span>
+                        </div>
+                        <div class="request-actions">
+                            <button class="ghost-btn small" type="button" @click="returnPostToDraft(entry)">Return to draft</button>
+                            <button class="ghost-btn small danger-btn" type="button" @click="deleteMyPost(entry)">Delete</button>
+                        </div>
+                    </article>
+                    <div v-if="!workspacePending.length" class="card empty-state">No publications are waiting for review right now.</div>
+                </div>
+
+                <div v-else-if="profileSection === 'drafts' && canAccessContributorWorkspace" class="list-grid">
+                    <article v-for="entry in workspaceDrafts" :key="entry.id" class="card entry-card">
+                        <span class="status-chip" :class="statusClass(entry.status)">{{ statusLabel(entry.status) }}</span>
+                        <h3>{{ translateText(entry.title) }}</h3>
+                        <p class="muted">{{ paperAuthorsLabel(entry) }}</p>
+                        <p v-if="entry.rejectReason"><strong>Rejection reason:</strong> {{ entry.rejectReason }}</p>
+                        <div class="entry-card__meta">
+                            <span v-if="entry.submittedAt">Last submitted {{ formatShortDate(entry.submittedAt) }}</span>
+                            <span>Updated {{ formatShortDate(entry.updatedAt) }}</span>
+                        </div>
+                        <div class="request-actions">
+                            <button class="ghost-btn small" type="button" @click="editPost(entry)">Edit</button>
+                            <button class="ghost-btn small danger-btn" type="button" @click="deleteMyPost(entry)">Delete</button>
+                        </div>
+                    </article>
+                    <div v-if="!workspaceDrafts.length" class="card empty-state">No draft or rejected publications yet.</div>
+                </div>
+
+                <div v-else-if="profileSection === 'liked'" class="list-grid">
+                    <article v-for="entry in likedPosts" :key="entry.id" class="card entry-card">
+                        <h3>{{ translateText(entry.title) }}</h3>
+                        <p class="muted">{{ paperAuthorsLabel(entry) }}</p>
+                        <p class="muted" v-if="entry.venue || paperYearLabel(entry)">{{ paperYearLabel(entry) }}<span v-if="paperYearLabel(entry) && entry.venue"> - </span>{{ entry.venue }}</p>
+                        <div class="entry-card__meta">
+                            <span>{{ displayLikeCount(entry) }} likes</span>
+                            <span>{{ entry.commentCount || 0 }} comments</span>
+                            <span>{{ formatShortDate(entry.createdAt) }}</span>
+                        </div>
+                        <div class="request-actions">
+                            <button class="ghost-btn small" type="button" @click="openPost(entry.id)">Open publication</button>
+                            <button class="ghost-btn small" type="button" :disabled="likeRequestPending" @click="toggleLike(entry)">{{ isPostLiked(entry.id) ? 'Unlike' : 'Like' }}</button>
+                        </div>
+                    </article>
+                    <div v-if="!likedPosts.length" class="card empty-state">No liked publications yet. Open a paper and save the ones you want to revisit.</div>
+                </div>
+
+                <div v-else-if="showPermissionRequestModule" class="permissions-stack">
+                    <article v-if="canApplyForContributor" class="card request-card request-card--action">
+                        <p class="eyebrow dark">Apply for Access</p>
+                        <h3>Contributor access application</h3>
+                        <p class="muted">Submit a request to become a contributor. You will need to provide a reason for your application.</p>
+                        
+                        <div class="permission-request-form">
+                            <div class="permission-request-form__reason">
+                                <label for="application-reason" class="block text-sm font-medium text-gray-700 mb-1">Application Reason</label>
+                                <textarea 
+                                    id="application-reason" 
+                                    v-model="contributorApplicationForm.applicationReason" 
+                                    rows="4" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    placeholder="Please explain why you want to become a contributor..."
+                                ></textarea>
+                            </div>
+                            
+                            <div class="permission-request-form__attachment">
+                                <label for="attachment" class="block text-sm font-medium text-gray-700 mb-1">Attachment (PDF only)</label>
+                                <div class="file-picker">
+                                    <input
+                                        id="attachment"
+                                        ref="attachmentFileInput"
+                                        class="file-picker__input"
+                                        type="file"
+                                        accept=".pdf"
+                                        @change="handleAttachmentChange"
+                                    />
+                                    <button class="ghost-btn small" type="button" @click="triggerFilePicker('attachmentFileInput')">Choose file</button>
+                                    <span class="file-picker__name">{{ attachmentFileLabel }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="request-actions mt-4">
+                            <button class="ghost-btn small" type="button" @click="submitPermissionRequest">Submit Application</button>
+                        </div>
+                    </article>
+
+                    <article v-else class="card request-card request-card--action">
+                        <p class="eyebrow dark">Apply for Access</p>
+                        <h3>Contributor access application</h3>
+                        <p v-if="currentUser?.role === 'USER' && latestContributorApplication?.status === 'PENDING'" class="muted">Your current contributor application is still pending review.</p>
+                        <p v-else-if="currentUser?.role === 'CONTRIBUTOR'" class="muted">You already have contributor access.</p>
+                        <p v-else-if="currentUser?.role === 'ADMIN'" class="muted">Administrator accounts do not need contributor access requests.</p>
+                        <p v-else class="muted">Submit a single request to become a contributor.</p>
+                        <div class="request-actions">
+                            <span class="muted">No new contributor request can be submitted right now.</span>
+                        </div>
+                    </article>
+
+                    <article class="card request-card">
+                        <p class="eyebrow dark">Request History</p>
+                        <h3>Track your contributor application status</h3>
+                        <p class="muted">{{ myContributorApplicationResultCountLabel }}</p>
+                        <p class="muted">{{ myContributorApplicationFilterSummary }}</p>
+                        <div class="request-actions">
+                            <select v-model="myContributorApplicationStatusFilter">
+                                <option value="">All statuses</option>
+                                <option value="PENDING">Pending</option>
+                                <option value="APPROVED">Approved</option>
+                                <option value="REJECTED">Rejected</option>
+                            </select>
+                            <button class="ghost-btn small" type="button" @click="clearMyContributorApplicationFilter">Clear</button>
+                        </div>
+
+                        <div class="request-history-list">
+                            <article v-for="entry in myContributorApplicationsView" :key="entry.id" class="request-history-item">
+                                <div class="request-card__top">
+                                    <h3>{{ contributorApplicationTitle() }}</h3>
+                                    <span class="status-chip" :class="statusClass(entry.status)">{{ statusLabel(entry.status) }}</span>
+                                </div>
+                                <p>{{ contributorApplicationNote(entry) }}</p>
+                                <p v-if="entry.rejectReason"><strong>Rejection reason:</strong> {{ entry.rejectReason }}</p>
+                                <div class="entry-card__meta">
+                                    <span>Submitted {{ formatShortDate(entry.createdAt) }}</span>
+                                    <span v-if="entry.reviewedAt">Reviewed {{ formatShortDate(entry.reviewedAt) }}</span>
+                                    <span v-if="entry.reviewerName">Reviewed by {{ translateNickname(entry.reviewerName) }}</span>
+                                </div>
+                            </article>
+                            <div v-if="!myContributorApplicationsView.length" class="empty-state empty-state--inline">{{ myContributorApplicationEmptyLabel }}</div>
+                        </div>
+                    </article>
+                </div>
+            </template>
+        </section>
+
+        <section v-show="currentView === 'admin'" class="view-stack">
+            <div class="section-head admin-dashboard__head">
+                <div class="admin-dashboard__intro">
+                    <p class="eyebrow dark">Administrator Page</p>
+                    <h2>Admin Dashboard</h2>
+                    <p class="admin-dashboard__subtitle">Manage publication workflows, users, contributor applications, and review queues.</p>
+                </div>
+            </div>
+
+            <div v-if="!isAdmin" class="card empty-state">
+                Sign in with the administrator account to preview the administration interface.
+            </div>
+
+            <template v-else>
+                <section class="card admin-analytics-panel">
+                    <div class="section-head compact">
+                        <div>
+                            <p class="eyebrow dark">Activity Overview</p>
+                            <h3>Publishing and discussion trends</h3>
+                            <p class="muted">These charts help administrators understand recent archive growth and community interaction before reviewing publications and users.</p>
+                        </div>
+                    </div>
+                    <div class="admin-analytics-grid">
+                        <article class="chart-card">
+                            <div id="chart-posts" class="chart-surface" aria-label="Daily published stories chart"></div>
+                        </article>
+                        <article class="chart-card">
+                            <div id="chart-comments" class="chart-surface" aria-label="Discussion activity trends chart"></div>
+                        </article>
+                    </div>
+                </section>
+
+                <div class="admin-kpi-grid">
+                    <button
+                        v-for="card in adminKpiCards"
+                        :key="card.targetSection"
+                        class="card admin-kpi-card"
+                        :class="[
+                            { active: card.isActive, 'admin-kpi-card--alert': card.isAlert },
+                            `admin-kpi-card--${card.badgeTone}`
+                        ]"
+                        type="button"
+                        @click="selectAdminSection(card.targetSection)"
+                    >
+                        <div class="admin-kpi-card__top">
+                            <span class="admin-kpi-card__label">{{ card.label }}</span>
+                            <span class="admin-kpi-card__badge" :class="`admin-kpi-card__badge--${card.badgeTone}`">{{ card.microLabel }}</span>
+                        </div>
+                        <strong class="admin-kpi-card__value">{{ card.value }}</strong>
+                        <p class="admin-kpi-card__detail">{{ card.detail }}</p>
+                    </button>
+                </div>
+
+                <div class="tab-row">
+                    <button class="tab-btn" :class="{ active: adminSection === 'articles' }" type="button" @click="selectAdminSection('articles')">Publication Management</button>
+                    <button class="tab-btn" :class="{ active: adminSection === 'users' }" type="button" @click="selectAdminSection('users')">User Management</button>
+                    <button class="tab-btn" :class="{ active: adminSection === 'contributor-review' }" type="button" @click="selectAdminSection('contributor-review')">Contributor Review</button>
+                    <button class="tab-btn" :class="{ active: adminSection === 'approvals' }" type="button" @click="selectAdminSection('approvals')">Publication Review</button>
+                </div>
+
+                <section v-if="adminSection === 'articles'" class="card admin-panel">
+                    <div class="section-head compact">
+                        <div>
+                            <p class="eyebrow dark">Publication Management</p>
+                            <h3>Review publication states and update publication status</h3>
+                            <p class="muted">{{ adminResultCountLabel }}</p>
+                            <p class="muted">{{ adminResultSummary }}</p>
+                            <p class="muted">{{ adminSortSummary }}</p>
+                        </div>
+                        <div class="request-actions request-actions--articles">
+                            <input v-model="adminTitleQuery" type="text" placeholder="Search by title">
+                            <select v-model="adminFilterStatus">
+                                <option value="">All statuses</option>
+                                <option value="PENDING_REVIEW">Pending Review</option>
+                                <option value="PUBLISHED">Published</option>
+                                <option value="REJECTED">Rejected</option>
+                                <option value="ARCHIVED">Archived</option>
+                            </select>
+                            <select v-model="adminSortOption">
+                                <option value="UPDATED_DESC">Recently updated</option>
+                                <option value="SUBMITTED_DESC">Recently submitted</option>
+                                <option value="REVIEWED_DESC">Recently reviewed</option>
+                            </select>
+                            <select v-model.number="adminPostSize" @change="changeAdminPostSize">
+                                <option :value="10">10 / page</option>
+                                <option :value="20">20 / page</option>
+                                <option :value="50">50 / page</option>
+                            </select>
+                            <div class="admin-inline-actions">
+                                <button class="ghost-btn small" type="button" @click="searchAdminPosts">Search</button>
+                                <button class="ghost-btn small" type="button" @click="clearAdminSearch">Clear</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Type</th>
+                                <th>Author</th>
+                                <th>Status</th>
+                                <th>{{ adminSortColumnLabel }}</th>
+                                <th>Actions</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr v-for="row in adminArticles" :key="row.id" @click="openAdminPost(row.id)">
+                                <td>{{ translateText(row.title) }}</td>
+                                <td>{{ translateCategory(row.categoryName) }}</td>
+                                <td>{{ translateNickname(row.authorName) }}</td>
+                                <td><span class="status-chip" :class="statusClass(row.status)">{{ statusLabel(row.status) }}</span></td>
+                                <td>{{ formatShortDate(adminSortValue(row)) }}</td>
+                                <td class="data-table__actions">
+                                    <button class="ghost-btn small" type="button" @click.stop="openAdminPostPreview(row.id)">Detail</button>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div v-if="adminArticles.length" class="admin-pagination admin-pagination--articles" aria-label="Admin publication pagination">
+                        <div class="admin-pagination__actions">
+                            <button class="ghost-btn small" type="button" :disabled="!adminPostHasPrevious" @click="goToPreviousAdminPostPage">Previous</button>
+                            <button class="ghost-btn small" type="button" :disabled="!adminPostHasNext" @click="goToNextAdminPostPage">Next</button>
+                        </div>
+                        <p class="muted admin-pagination__label">{{ adminPaginationLabel }}</p>
+                    </div>
+                    <article v-if="selectedAdminPost" class="card request-card">
+                        <div class="request-card__top">
+                            <h3>{{ translateText(selectedAdminPost.title) }}</h3>
+                            <span class="status-chip" :class="statusClass(selectedAdminPost.status)">{{ statusLabel(selectedAdminPost.status) }}</span>
+                        </div>
+                        <div v-if="pendingQueueReturnToApprovals" class="request-actions">
+                            <button class="ghost-btn small" type="button" @click="returnToPendingQueue">Back to publication review queue</button>
+                        </div>
+                        <p class="muted">Publication - {{ translateNickname(selectedAdminPost.authorName) }}</p>
+                        <div v-if="hasPaperMetadata(selectedAdminPost)" class="paper-admin-summary">
+                            <span>Authors: {{ paperAuthorsLabel(selectedAdminPost) }}</span>
+                            <span v-if="paperYearLabel(selectedAdminPost)">Year: {{ paperYearLabel(selectedAdminPost) }}</span>
+                            <span v-if="selectedAdminPost.venue">Venue: {{ selectedAdminPost.venue }}</span>
+                            <span v-if="selectedAdminPost.pdfUrl">PDF: {{ selectedAdminPost.pdfUrl.split('/').pop() }}</span>
+                        </div>
+                        <section class="ai-content-studio" aria-labelledby="ai-content-studio-title">
+                            <div class="section-head compact">
+                                <div>
+                                    <p class="toolbar__label">AI Content Studio</p>
+                                    <strong id="ai-content-studio-title">Generate social copy and representative images from one paper</strong>
+                                </div>
+                                <button
+                                    class="primary-btn small"
+                                    type="button"
+                                    :disabled="aiContentGenerationLoading || socialCopyLoading || aiCoverGenerationLoading || !selectedAdminPost.pdfUrl"
+                                    @click="generateAiContentBundle"
+                                >
+                                    {{ aiContentGenerationLoading ? 'Generating content...' : 'Generate Copy & Images' }}
+                                </button>
+                            </div>
+                            <p class="muted">The PDF is analyzed once as the shared source. Copy and images remain independently reviewable and can be regenerated separately.</p>
+                            <div class="ai-content-progress" aria-live="polite">
+                                <span :class="{ complete: !!selectedAdminPost.pdfUrl }">1. PDF ready</span>
+                                <span :class="{ active: socialCopyLoading, complete: !!socialCopyResult }">2. Copy {{ socialCopyLoading ? 'generating' : (socialCopyResult ? 'ready' : 'pending') }}</span>
+                                <span :class="{ active: aiCoverGenerationLoading, complete: aiCoverCandidates.length > 0 }">3. Images {{ aiCoverGenerationLoading ? 'generating' : (aiCoverCandidates.length ? 'ready' : 'pending') }}</span>
+                                <span :class="{ complete: !!socialCopyResult && aiCoverCandidates.length > 0 }">4. Review</span>
+                            </div>
+                            <p v-if="aiContentGenerationStage" class="ai-content-studio__status">{{ aiContentGenerationStage }}</p>
+                            <div class="ai-content-studio__actions">
+                                <button class="ghost-btn small" type="button" :disabled="aiContentGenerationLoading || socialCopyLoading || !selectedAdminPost.pdfUrl" @click="generateSocialCopyForAdminPost">
+                                    {{ socialCopyLoading ? 'Generating copy...' : (socialCopyResult ? 'Regenerate Copy Only' : 'Generate Copy Only') }}
+                                </button>
+                                <button class="ghost-btn small" type="button" :disabled="aiContentGenerationLoading || aiCoverGenerationLoading || !selectedAdminPost.pdfUrl" @click="generateAiCoverCandidates">
+                                    {{ aiCoverGenerationLoading ? 'Generating images...' : (aiCoverCandidates.length ? 'Regenerate Images Only' : 'Generate Images Only') }}
+                                </button>
+                            </div>
+                            <p v-if="!selectedAdminPost.pdfUrl" class="muted">Upload a paper PDF to enable content generation.</p>
+                            <div v-if="socialCopyResult" class="ai-content-copy-preview">
+                                <div class="ai-content-copy-preview__head">
+                                    <strong>Generated social copy</strong>
+                                    <button class="ghost-btn small" type="button" @click="copyGeneratedSocialCopy">Copy text</button>
+                                </div>
+                                <textarea readonly :value="socialCopyResult.copyText" aria-label="Generated social copy"></textarea>
+                                <p class="muted">{{ socialCopySourceLabel(socialCopyResult.source) }}</p>
+                            </div>
+                            <div v-else class="ai-content-copy-placeholder">
+                                <strong>Social copy</strong>
+                                <p class="muted">Generate both outputs together or create the copy separately. The result will appear here.</p>
+                            </div>
+                            <div class="ai-content-image-review">
+                            <div class="section-head compact">
+                                <div>
+                                    <p class="toolbar__label">Image candidates</p>
+                                    <strong>Review and select the representative image</strong>
+                                </div>
+                            </div>
+                            <p class="muted">Candidates may include a paper source image, a Qwen image and a ComfyUI/IP-Adapter image.</p>
+                            <p v-if="!selectedAdminPost.pdfUrl" class="muted">No PDF file is available for this publication.</p>
+                            <p v-if="aiCoverGenerationLoading" class="muted">
+                                Extracting GROBID/PDF evidence, supplementing it with DOI metadata, and generating grounded product-in-use candidates. This may take a few minutes.
+                            </p>
+                            <p v-if="aiCoverGenerationResult" class="muted">{{ aiCoverStatusLabel(aiCoverGenerationResult) }}</p>
+                            <div v-if="aiCoverCandidates.length" class="ai-cover-preview-toolbar" aria-label="Candidate preview view">
+                                <button class="ghost-btn small" :class="{ active: aiCoverPreviewMode === 'website' }" type="button" @click="aiCoverPreviewMode = 'website'">{{ siteLanguage === 'zh' ? '原图' : 'Original image' }}</button>
+                                <button class="ghost-btn small" :class="{ active: aiCoverPreviewMode === 'social' }" type="button" @click="aiCoverPreviewMode = 'social'">{{ siteLanguage === 'zh' ? '模板封面' : 'Template cover' }}</button>
+                                <button class="ghost-btn small" type="button" @click="clearAiCoverCandidates">Clear stale candidates</button>
+                            </div>
+                            <div v-if="aiCoverCandidates.length" class="ai-cover-candidate-grid">
+                                <article
+                                    v-for="(candidate, index) in aiCoverCandidates"
+                                    :key="candidate.candidateId || candidate.imageUrl"
+                                    class="ai-cover-candidate-card"
+                                    :class="{ recommended: isRankedAiCoverRecommendation(candidate), selected: isSelectedAiCoverCandidate(candidate) }"
+                                >
+                                    <div class="ai-cover-candidate-card__image" :class="{ 'social-preview': aiCoverPreviewMode === 'social' }">
+                                        <img :src="resolveAsset(candidatePreviewUrl(candidate))" :alt="`Representative image candidate ${index + 1}`">
+                                        <span v-if="isRankedAiCoverRecommendation(candidate)" class="ai-cover-candidate-card__badge">Recommended</span>
+                                        <span v-if="isSelectedAiCoverCandidate(candidate)" class="ai-cover-candidate-card__badge selected">Selected cover</span>
+                                    </div>
+                                    <div class="ai-cover-candidate-card__body">
+                                        <h4>Candidate {{ index + 1 }}</h4>
+                                        <span class="ai-cover-candidate-source">{{ candidateSourceLabel(candidate) }}</span>
+                                        <p class="muted" v-if="candidate.seed">Seed {{ candidate.seed }}</p>
+                                        <p v-if="candidate.recommendationReason" class="ai-cover-candidate-reason">{{ candidate.recommendationReason }}</p>
+                                        <div v-if="candidate.sceneScore" class="ai-cover-candidate-scores">
+                                            <span>Scene <strong>{{ candidate.sceneScore.sceneRealismScore }}/10</strong></span>
+                                            <span>Task <strong>{{ candidate.sceneScore.taskAccuracyScore }}/10</strong></span>
+                                            <span>Technology <strong>{{ candidate.sceneScore.technologyRelevanceScore }}/10</strong></span>
+                                            <span>Clarity <strong>{{ candidate.sceneScore.visualClarityScore }}/10</strong></span>
+                                        </div>
+                                        <details v-if="aiCoverSceneDetails.length" class="ai-cover-candidate-details">
+                                            <summary>Scene details</summary>
+                                            <dl>
+                                                <template v-for="item in aiCoverSceneDetails" :key="item.label">
+                                                    <dt>{{ item.label }}</dt>
+                                                    <dd>{{ item.value }}</dd>
+                                                </template>
+                                            </dl>
+                                        </details>
+                                        <a
+                                            v-if="candidate.socialCoverUrl"
+                                            class="ghost-btn small ai-cover-download"
+                                            :href="resolveAsset(candidate.socialCoverUrl)"
+                                            :download="`publication-${selectedAdminPostId}-candidate-${index + 1}-xiaohongshu.jpg`"
+                                        >Download 3:4 cover</a>
+                                        <button
+                                            class="primary-btn small"
+                                            type="button"
+                                            :disabled="aiCoverSelectionLoading || isSelectedAiCoverCandidate(candidate)"
+                                            @click="selectAiCoverCandidate(candidate)"
+                                        >
+                                            {{ isSelectedAiCoverCandidate(candidate) ? 'Selected as Cover' : 'Select as Cover' }}
+                                        </button>
+                                    </div>
+                                </article>
+                            </div>
+                            </div>
+                        </section>
+                        <p>{{ selectedAdminPost.abstractText || selectedAdminPost.content }}</p>
+                        <p v-if="selectedAdminPost.rejectReason" class="muted">Rejection reason: {{ selectedAdminPost.rejectReason }}</p>
+                        <div class="entry-card__meta">
+                            <span v-if="selectedAdminPost.submittedAt">Submitted {{ formatShortDate(selectedAdminPost.submittedAt) }}</span>
+                            <span v-if="selectedAdminPost.reviewedAt">Reviewed {{ formatShortDate(selectedAdminPost.reviewedAt) }}</span>
+                            <span v-if="reviewerLabel(selectedAdminPost)">Reviewed by {{ translateNickname(reviewerLabel(selectedAdminPost)) }}</span>
+                        </div>
+                        <label v-if="selectedAdminPost.status === 'PENDING_REVIEW'">
+                            Rejection Reason
+                            <textarea v-model="adminReviewReason" rows="3" placeholder="Explain why this publication should be revised."></textarea>
+                        </label>
+                        <div class="request-actions">
+                            <button v-if="selectedAdminPost.status === 'PENDING_REVIEW'" class="primary-btn small" type="button" @click="approveSelectedAdminPost">Approve</button>
+                            <button v-if="selectedAdminPost.status === 'PENDING_REVIEW'" class="ghost-btn small" type="button" @click="rejectSelectedAdminPost">Reject</button>
+                            <button v-if="selectedAdminPost.status === 'PUBLISHED'" class="ghost-btn small" type="button" @click="archiveSelectedAdminPost">Archive</button>
+                            <button v-if="selectedAdminPost.status === 'ARCHIVED'" class="ghost-btn small" type="button" @click="restoreSelectedAdminPost">Restore</button>
+                        </div>
+                    </article>
+                    <div v-if="!adminArticles.length" class="card empty-state">No publications match the current filter.</div>
+                    <teleport to="body">
+                    <div v-if="adminPreviewPost" class="modal-overlay" @click.self="closeAdminPostPreview">
+                        <article class="card admin-detail-modal" role="dialog" aria-modal="true" aria-label="Publication detail preview">
+                            <div class="admin-detail-modal__header">
+                                <div>
+                                    <p class="eyebrow dark">Publication Detail</p>
+                                    <h3>{{ translateText(adminPreviewPost.title) }}</h3>
+                                </div>
+                                <div class="admin-detail-modal__header-actions">
+                                    <span class="status-chip" :class="statusClass(adminPreviewPost.status)">{{ statusLabel(adminPreviewPost.status) }}</span>
+                                    <button v-if="adminPreviewPost.status === 'PUBLISHED'" class="ghost-btn small" type="button" @click="archivePreviewAdminPost">Archive</button>
+                                    <button v-if="adminPreviewPost.status === 'ARCHIVED'" class="ghost-btn small" type="button" @click="restorePreviewAdminPost">Restore</button>
+                                    <button class="ghost-btn small" type="button" @click="closeAdminPostPreview">Close</button>
+                                </div>
+                            </div>
+                            <div class="admin-detail-modal__meta">
+                                <span>Author: {{ translateNickname(adminPreviewPost.authorName) }}</span>
+                                <span>Type: Publication</span>
+                                <span v-if="adminPreviewPost.submittedAt">Submitted: {{ formatDate(adminPreviewPost.submittedAt) }}</span>
+                                <span v-if="adminPreviewPost.reviewedAt">Reviewed: {{ formatDate(adminPreviewPost.reviewedAt) }}</span>
+                                <span v-if="reviewerLabel(adminPreviewPost)">Reviewer: {{ translateNickname(reviewerLabel(adminPreviewPost)) }}</span>
+                            </div>
+                            <div class="admin-detail-modal__body">
+                                <div class="admin-detail-modal__cover" :class="{ 'cover-surface--default': !hasPostProvidedCover(adminPreviewPost), 'cover-surface--uploaded': hasPostProvidedCover(adminPreviewPost) }" :style="coverSurfaceStyle(adminPreviewPost)">
+                                    <img
+                                        v-if="hasPostProvidedCover(adminPreviewPost)"
+                                        :src="resolveAsset(getPostOwnCoverImage(adminPreviewPost))"
+                                        :alt="`${translateText(adminPreviewPost.title)} cover image`"
+                                        class="cover-surface__image admin-detail-modal__cover-image previewable-image"
+                                        @click="openAdminCoverPreview"
+                                    >
+                                    <img
+                                        v-if="!hasPostProvidedCover(adminPreviewPost)"
+                                        :src="resolveAsset(getPostCoverImage(adminPreviewPost))"
+                                        :alt="`${translateText(adminPreviewPost.title)} default cover image`"
+                                        class="cover-surface__image cover-surface__default-image"
+                                    >
+                                    <div v-if="!hasPostProvidedCover(adminPreviewPost)" class="default-cover default-cover--admin">
+                                        <span class="default-cover__eyebrow">Publication</span>
+                                        <strong class="default-cover__title">{{ coverCategoryLabel(adminPreviewPost.categoryName) }}</strong>
+                                    </div>
+                                </div>
+                                <div class="admin-detail-modal__section">
+                                    <h4>Abstract</h4>
+                                    <div class="detail-reading-block detail-reading-block--admin">
+                                        <div class="admin-detail-modal__content">{{ adminPreviewPost.abstractText || adminPreviewPost.content }}</div>
+                                    </div>
+                                </div>
+                                <p v-if="adminPreviewPost.rejectReason" class="muted">Rejection reason: {{ adminPreviewPost.rejectReason }}</p>
+                            </div>
+                        </article>
+                    </div>
+                    </teleport>
+                </section>
+
+                <section v-else-if="adminSection === 'users'" class="card admin-panel">
+                    <div class="section-head compact">
+                        <div>
+                            <p class="eyebrow dark">User Management</p>
+                            <h3>Review roles, activity, and account states</h3>
+                            <p class="muted">{{ adminUserResultCountLabel }}</p>
+                            <p class="muted">{{ adminUserFilterSummary }}</p>
+                        </div>
+                        <div class="request-actions">
+                            <input v-model="adminUserQuery" type="text" placeholder="Search by username">
+                            <select v-model="adminUserRoleFilter">
+                                <option value="">All roles</option>
+                                <option value="USER">User</option>
+                                <option value="CONTRIBUTOR">Contributor</option>
+                                <option value="ADMIN">Admin</option>
+                            </select>
+                            <select v-model="adminUserActiveFilter">
+                                <option value="">All statuses</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                            <select v-model.number="adminUserSize" @change="changeAdminUserSize">
+                                <option :value="10">10 / page</option>
+                                <option :value="20">20 / page</option>
+                                <option :value="50">50 / page</option>
+                            </select>
+                            <div class="admin-inline-actions">
+                                <button class="ghost-btn small" type="button" @click="searchAdminUsers">Search</button>
+                                <button class="ghost-btn small" type="button" @click="clearAdminUserSearch">Clear</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Display name</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Contributions</th>
+                                <th>Actions</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr v-for="row in adminUsersView" :key="row.id">
+                                <td>{{ row.username }}</td>
+                                <td>{{ translateNickname(row.nickname) }}</td>
+                                <td>{{ roleLabel(row.role) }}</td>
+                                <td>{{ row.status }}</td>
+                                <td>{{ row.contributions }}</td>
+                                <td>
+                                    <div v-if="canManageUserRole(row)" class="request-actions">
+                                        <button
+                                            class="ghost-btn small"
+                                            type="button"
+                                            @click="updateAdminUserRole(row.id, nextUserRole(row))"
+                                        >
+                                            {{ nextUserRoleLabel(row) }}
+                                        </button>
+                                        <button
+                                            class="ghost-btn small"
+                                            type="button"
+                                            @click="row.active ? deactivateAdminUser(row.id) : activateAdminUser(row.id)"
+                                        >
+                                            {{ nextUserActiveActionLabel(row) }}
+                                        </button>
+                                    </div>
+                                    <span v-else class="muted">Protected</span>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div v-if="adminUserTotalElements" class="admin-pagination" aria-label="Admin user pagination">
+                        <button class="ghost-btn small" type="button" :disabled="!adminUserHasPrevious" @click="goToPreviousAdminUserPage">Previous</button>
+                        <p class="muted admin-pagination__label">{{ adminUserPaginationLabel }}</p>
+                        <button class="ghost-btn small" type="button" :disabled="!adminUserHasNext" @click="goToNextAdminUserPage">Next</button>
+                    </div>
+                    <div v-if="!adminUsersView.length" class="card empty-state">No users match the current filter.</div>
+                </section>
+
+                <section v-else-if="adminSection === 'contributor-review'" class="card admin-panel">
+                    <div class="section-head compact">
+                        <div>
+                            <p class="eyebrow dark">Contributor Review</p>
+                            <h3>Review pending contributor access requests</h3>
+                            <p class="muted">{{ adminContributorApplicationResultCountLabel }}</p>
+                            <p class="muted">{{ adminContributorApplicationFilterSummary }}</p>
+                        </div>
+                        <div class="request-actions">
+                            <input v-model="adminContributorApplicationQuery" type="text" placeholder="Search by username">
+                            <select v-model="adminContributorApplicationSortBy">
+                                <option value="created_at_desc">By time (newest first)</option>
+                                <option value="applicant_username_asc">By username (A-Z)</option>
+                            </select>
+                            <button class="ghost-btn small" type="button" @click="searchAdminContributorApplications">Search</button>
+                            <button class="ghost-btn small" type="button" @click="clearAdminContributorApplications">Clear</button>
+                        </div>
+                    </div>
+                    <div class="approval-list">
+                        <article v-for="entry in adminContributorApplicationsView" :key="entry.id" class="approval-card">
+                            <div class="approval-card__top">
+                                <h3>{{ contributorApplicationTitle() }}</h3>
+                                <span class="status-chip" :class="statusClass(entry.status)">{{ statusLabel(entry.status) }}</span>
+                            </div>
+                            <p class="muted">{{ entry.applicantUsername }} 路 {{ translateNickname(entry.applicantNickname) }}</p>
+                            <p v-if="entry.applicationReason" class="mt-2"><strong>Application Reason:</strong> {{ entry.applicationReason }}</p>
+                            <p v-if="entry.attachmentPath" class="mt-1"><strong>Attachment:</strong> <a :href="entry.attachmentPath" target="_blank">View PDF</a></p>
+                            <div class="entry-card__meta mt-2">
+                                <span>Submitted {{ formatShortDate(entry.createdAt) }}</span>
+                                <span v-if="entry.reviewedAt">Reviewed {{ formatShortDate(entry.reviewedAt) }}</span>
+                                <span v-if="entry.reviewerName">Reviewed by {{ translateNickname(entry.reviewerName) }}</span>
+                            </div>
+                            <label v-if="entry.status === 'PENDING'" class="mt-2">
+                                Rejection reason
+                                <textarea
+                                    v-model="contributorApplicationRejectReasons[entry.id]"
+                                    rows="2"
+                                    placeholder="Explain why this contributor application is being rejected."
+                                ></textarea>
+                            </label>
+                            <p v-if="entry.rejectReason" class="mt-2"><strong>Rejection reason:</strong> {{ entry.rejectReason }}</p>
+                            <div class="request-actions mt-2 contributor-review__actions">
+                                <button v-if="entry.status === 'PENDING'" class="primary-btn small" type="button" @click="approveContributorApplication(entry.id)">Approve</button>
+                                <button v-if="entry.status === 'PENDING'" class="ghost-btn small" type="button" @click="rejectContributorApplication(entry.id)">Reject</button>
+                            </div>
+                        </article>
+                        <div v-if="!adminContributorApplicationsView.length" class="card empty-state">{{ adminContributorApplicationEmptyLabel }}</div>
+                    </div>
+                </section>
+
+                <section v-else class="card admin-panel">
+                    <div class="section-head compact">
+                        <div>
+                            <p class="eyebrow dark">Publication Review Queue</p>
+                            <h3>Pending publication reviews waiting for action</h3>
+                            <p class="muted">{{ pendingQueueSummaryLabel }}</p>
+                            <p class="muted">{{ pendingQueueSearchSummary }}</p>
+                        </div>
+                        <div class="request-actions">
+                            <input v-model="pendingQueueQuery" type="text" placeholder="Search queue by title">
+                            <button class="ghost-btn small" type="button" @click="clearPendingQueueSearch">Clear</button>
+                        </div>
+                    </div>
+                    <div class="approval-list">
+                        <article v-for="row in adminApprovalsView" :key="row.id" class="approval-card">
+                            <div class="approval-card__top">
+                                <h3>{{ row.title }}</h3>
+                                <span class="status-chip" :class="statusClass(row.status)">{{ statusLabel(row.status) }}</span>
+                            </div>
+                            <p class="muted">Author: {{ translateNickname(row.authorName) }}</p>
+                            <div class="entry-card__meta">
+                                <span>Submitted {{ formatShortDate(row.submittedAt) }}</span>
+                                <span v-if="row.reviewerName">Reviewed by {{ translateNickname(row.reviewerName) }}</span>
+                            </div>
+                            <div class="request-actions">
+                                <button class="primary-btn small" type="button" @click="quickApproveFromQueue(row.postId)">Quick approve</button>
+                                <button class="ghost-btn small" type="button" @click="openReviewFromQueue(row.postId)">Open publication review</button>
+                            </div>
+                        </article>
+                        <div v-if="!adminApprovalsView.length" class="card empty-state">{{ pendingQueueEmptyLabel }}</div>
+                    </div>
+                </section>
+            </template>
+        </section>
+
+        <section v-show="currentView === 'auth'" class="view-stack">
+            <div class="section-head">
+                <div>
+                    <p class="eyebrow dark">{{ siteLanguage === 'zh' ? '账号入口' : 'Account Access' }}</p>
+                    <h2>{{ siteLanguage === 'zh' ? '登录或注册' : 'Register or sign in' }}</h2>
+                </div>
+            </div>
+
+            <div class="auth-grid">
+                <form v-if="authMode === 'login'" class="card form-card auth-panel" @submit.prevent="login">
+                    <div>
+                        <p class="eyebrow dark">{{ siteLanguage === 'zh' ? '登录' : 'Sign In' }}</p>
+                        <h3>{{ siteLanguage === 'zh' ? '使用你的账号继续' : 'Continue with your account' }}</h3>
+                        <p class="muted auth-panel__intro">{{ siteLanguage === 'zh' ? '请输入注册时使用的用户名和密码。' : 'Use the same username and password you registered with.' }}</p>
+                    </div>
+
+                    <div v-if="authBanner" class="message success auth-banner">{{ authBanner }}</div>
+
+                    <label class="auth-field--full">
+                        {{ siteLanguage === 'zh' ? '用户名' : 'Username' }}
+                        <input ref="loginUsernameInput" v-model="loginForm.username" type="text" autocomplete="username" :placeholder="siteLanguage === 'zh' ? '输入用户名' : 'Enter your username'">
+                    </label>
+                    <label class="auth-field--full">
+                        {{ siteLanguage === 'zh' ? '密码' : 'Password' }}
+                        <input v-model="loginForm.password" type="password" autocomplete="current-password" :placeholder="siteLanguage === 'zh' ? '输入密码' : 'Enter your password'">
+                    </label>
+                    <button class="ghost-btn auth-submit" type="submit">{{ siteLanguage === 'zh' ? '登录' : 'Sign in' }}</button>
+                    <div class="auth-link-row">
+                        <span>{{ siteLanguage === 'zh' ? '忘记密码？' : 'Forgot password?' }}</span>
+                        <button class="auth-link-btn" type="button" @click="openPasswordRecoveryMode">{{ siteLanguage === 'zh' ? '找回密码' : 'Recover password' }}</button>
+                    </div>
+                    <p class="auth-panel__hint auth-link-row">
+                        {{ siteLanguage === 'zh' ? '还没有账号？' : 'If you do not have an account yet,' }}
+                        <button class="auth-link-btn" type="button" @click="openRegisterMode">{{ siteLanguage === 'zh' ? '点击注册' : 'click here to register' }}</button>
+                    </p>
+                </form>
+
+                <form v-else-if="authMode === 'recover'" class="card form-card auth-panel" @submit.prevent="resetPasswordBySecurityQuestions">
+                    <div>
+                        <p class="eyebrow dark">Password Recovery</p>
+                        <h3>Recover your password</h3>
+                        <p class="muted auth-panel__intro">Enter your username, answer your 3 security questions, then set a new password.</p>
+                    </div>
+
+                    <div v-if="!hasPasswordRecoveryQuestions" class="auth-form-grid">
+                        <label class="auth-field--full">
+                            Username
+                            <input ref="passwordRecoveryUsernameInput" v-model="passwordRecoveryLookupUsername" type="text" autocomplete="username" placeholder="Enter your username">
+                        </label>
+                        <button class="primary-btn auth-submit auth-submit--center" type="button" @click="loadPasswordRecoveryQuestions">Load security questions</button>
+                    </div>
+
+                    <div v-else class="auth-form-grid">
+                        <p class="auth-field--full muted">Recovering account: <strong>{{ passwordRecoveryUsername }}</strong></p>
+                        <label v-for="(question, index) in passwordRecoveryQuestions" :key="`recover-question-${index}`" class="auth-field--full">
+                            Security Question {{ index + 1 }}
+                            <input :value="question.questionText" type="text" readonly>
+                            <input v-model="passwordRecoveryAnswers[index]" type="text" autocomplete="off" placeholder="Enter your answer exactly as set">
+                        </label>
+                        <label>
+                            New Password
+                            <input v-model="passwordRecoveryNewPassword" type="password" autocomplete="new-password" placeholder="At least 6 characters">
+                        </label>
+                        <label>
+                            Confirm New Password
+                            <input v-model="passwordRecoveryConfirmPassword" type="password" autocomplete="new-password" placeholder="Re-enter new password">
+                        </label>
+                        <button class="primary-btn auth-submit auth-field--full" type="submit">Reset password</button>
+                    </div>
+
+                    <p class="auth-panel__hint auth-link-row">
+                        <button class="auth-link-btn" type="button" @click="openLoginMode">Back to sign in</button>
+                    </p>
+                </form>
+
+                <form v-else class="card form-card auth-panel" @submit.prevent="register">
+                    <div>
+                        <p class="eyebrow dark">{{ siteLanguage === 'zh' ? '注册' : 'Registration' }}</p>
+                        <h3>{{ siteLanguage === 'zh' ? '创建账号' : 'Create an account' }}</h3>
+                        <p class="muted auth-panel__intro">{{ siteLanguage === 'zh' ? '填写账号信息，并设置三个安全问题。' : 'Fill in your account details and set exactly three security questions.' }}</p>
+                    </div>
+
+                    <div class="auth-form-grid">
+                        <label>
+                            Username
+                            <input ref="registerUsernameInput" v-model="registerForm.username" type="text" autocomplete="username" placeholder="4 to 50 characters">
+                        </label>
+                        <label>
+                            Display Name
+                            <input v-model="registerForm.nickname" type="text" autocomplete="nickname" placeholder="How your name will appear">
+                        </label>
+                        <label>
+                            Email
+                            <input v-model="registerForm.email" type="email" autocomplete="email" placeholder="Optional">
+                        </label>
+                        <label>
+                            Phone
+                            <input v-model="registerForm.phone" type="tel" autocomplete="tel" placeholder="Optional">
+                        </label>
+                        <label>
+                            Password
+                            <input v-model="registerForm.password" type="password" autocomplete="new-password" placeholder="At least 6 characters">
+                        </label>
+                        <label>
+                            Confirm Password
+                            <input v-model="registerForm.confirmPassword" type="password" autocomplete="new-password" placeholder="Re-enter your password">
+                        </label>
+                        <div class="auth-field--full">
+                            <p class="auth-panel__hint">Security Questions (required, exactly 3)</p>
+                        </div>
+                        <template v-for="(question, index) in registerForm.securityQuestions" :key="`register-security-${index}`">
+                            <label>
+                                Security Question {{ index + 1 }}
+                                <input v-model="question.questionText" type="text" autocomplete="off" placeholder="Set your own question">
+                            </label>
+                            <label>
+                                Security Answer {{ index + 1 }}
+                                <input v-model="question.answer" type="text" autocomplete="off" placeholder="Set the exact answer">
+                            </label>
+                        </template>
+                    </div>
+
+                    <p class="auth-panel__hint auth-link-row">
+                        Already have an account?
+                        <button class="auth-link-btn" type="button" @click="openLoginMode">click here to sign in</button>
+                    </p>
+                    <button class="primary-btn auth-submit" type="submit">{{ siteLanguage === 'zh' ? '创建账号' : 'Create account' }}</button>
+                </form>
+            </div>
+        </section>
+
+        <div v-if="imagePreviewOpen" class="image-preview-overlay" @click.self="closeImagePreview">
+            <article class="card image-preview-modal" role="dialog" aria-modal="true" aria-label="Image preview">
+                <div class="image-preview-modal__header">
+                    <div>
+                        <p class="eyebrow dark">Image Preview</p>
+                        <p class="muted image-preview-modal__counter">
+                            Image {{ imagePreviewIndex + 1 }} of {{ imagePreviewImages.length }} 路 {{ imagePreviewScaleLabel }}
+                        </p>
+                    </div>
+                    <div class="image-preview-modal__actions">
+                        <button class="ghost-btn small" type="button" @click="zoomImagePreviewOut">Zoom out</button>
+                        <button class="ghost-btn small" type="button" @click="resetImagePreviewZoom">Reset</button>
+                        <button class="ghost-btn small" type="button" @click="zoomImagePreviewIn">Zoom in</button>
+                        <button class="ghost-btn small" type="button" @click="closeImagePreview">Close</button>
+                    </div>
+                </div>
+                <div class="image-preview-modal__body">
+                    <button
+                        v-if="hasPreviewNavigation"
+                        class="ghost-btn small image-preview-modal__nav"
+                        type="button"
+                        @click="showPreviousPreviewImage"
+                        aria-label="Show previous image"
+                    >
+                        Previous
+                    </button>
+                    <div class="image-preview-modal__viewport" @wheel.prevent="handleImagePreviewWheel">
+                        <img
+                            :src="resolveAsset(currentPreviewImage)"
+                            alt="Enlarged publication image"
+                            class="image-preview-modal__image"
+                            :style="{ transform: `scale(${imagePreviewZoom})` }"
+                        >
+                    </div>
+                    <button
+                        v-if="hasPreviewNavigation"
+                        class="ghost-btn small image-preview-modal__nav"
+                        type="button"
+                        @click="showNextPreviewImage"
+                        aria-label="Show next image"
+                    >
+                        Next
+                    </button>
+                </div>
+            </article>
+        </div>
+    </main>
+</div>
+
+<script src="/vendor/vue.global.prod.js?v=local-20260814"></script>
+<script src="/app.js?v=20260820-async-generation"></script>
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js'));
+    }
+</script>
+</body>
+</html>

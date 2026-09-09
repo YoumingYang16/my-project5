@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>学术文章自动配图测试</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Microsoft YaHei", "Noto Sans CJK SC", Arial, sans-serif;
+        color: #172033;
+        background: #f4f7fb;
+      }
+
+      body {
+        margin: 0;
+        padding: 32px;
+      }
+
+      main {
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        margin: 0 0 16px;
+        font-size: 28px;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(320px, 0.8fr) minmax(360px, 1.2fr);
+        gap: 20px;
+        align-items: start;
+      }
+
+      section {
+        background: #ffffff;
+        border: 1px solid #d6deea;
+        border-radius: 8px;
+        padding: 18px;
+      }
+
+      label {
+        display: block;
+        margin: 12px 0 6px;
+        font-weight: 700;
+      }
+
+      input,
+      textarea {
+        box-sizing: border-box;
+        width: 100%;
+        border: 1px solid #c5cfdd;
+        border-radius: 6px;
+        padding: 10px 12px;
+        font: inherit;
+      }
+
+      textarea {
+        min-height: 340px;
+        resize: vertical;
+        line-height: 1.55;
+      }
+
+      button {
+        margin-top: 14px;
+        border: 0;
+        border-radius: 6px;
+        padding: 11px 16px;
+        background: #2563eb;
+        color: #ffffff;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      button:disabled {
+        background: #94a3b8;
+        cursor: wait;
+      }
+
+      .status {
+        margin-top: 12px;
+        color: #475569;
+        min-height: 24px;
+      }
+
+      .image-list {
+        display: grid;
+        gap: 16px;
+      }
+
+      figure {
+        margin: 0;
+        border: 1px solid #d6deea;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #ffffff;
+      }
+
+      figure img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      figcaption {
+        padding: 10px 12px;
+        color: #475569;
+        font-size: 14px;
+      }
+
+      .links {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        padding: 0 12px 12px;
+      }
+
+      .links a {
+        color: #2563eb;
+        text-decoration: none;
+        font-size: 14px;
+      }
+
+      pre {
+        white-space: pre-wrap;
+        word-break: break-word;
+        background: #0f172a;
+        color: #dbeafe;
+        border-radius: 8px;
+        padding: 12px;
+        max-height: 360px;
+        overflow: auto;
+      }
+
+      @media (max-width: 850px) {
+        body {
+          padding: 16px;
+        }
+
+        .layout {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>学术文章自动配图测试</h1>
+      <div class="layout">
+        <section>
+          <label for="webhook">Webhook 地址</label>
+          <input id="webhook" value="/api/article-images" />
+
+          <label for="token">调用密钥</label>
+          <input id="token" value="article-images-local-20260616-8f7c4a3b2d9e" />
+
+          <label for="title">文章标题</label>
+          <input id="title" value="Retrieval-Augmented Academic Question Answering" />
+
+          <label for="content">文章正文</label>
+          <textarea id="content"># Retrieval-Augmented Academic Question Answering
+
+This article proposes a retrieval-augmented generation system for academic papers. The system first segments and embeds papers, then retrieves relevant passages according to the user question, and finally uses a large language model to generate evidence-grounded answers.
+
+## Method
+
+The system includes five modules: document parsing, vector indexing, hybrid retrieval, evidence reranking, and answer generation.
+
+```python
+def retrieve(question, index):
+    candidates = index.search(question, top_k=20)
+    reranked = rerank(question, candidates)
+    return reranked[:5]
+```
+
+## Experiment
+
+The experiment shows that hybrid retrieval and evidence reranking can improve answer accuracy and reduce hallucinations.</textarea>
+
+          <button id="run">生成配图</button>
+          <div class="status" id="status"></div>
+        </section>
+
+        <section>
+          <div class="image-list" id="images"></div>
+          <pre id="raw" hidden></pre>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      const runButton = document.querySelector("#run");
+      const statusBox = document.querySelector("#status");
+      const imagesBox = document.querySelector("#images");
+      const rawBox = document.querySelector("#raw");
+
+      runButton.addEventListener("click", async () => {
+        runButton.disabled = true;
+        statusBox.textContent = "正在调用 n8n 和 DeepSeek，通常需要 10-40 秒...";
+        imagesBox.innerHTML = "";
+        rawBox.hidden = true;
+
+        const payload = {
+          title: document.querySelector("#title").value,
+          format: "markdown",
+          options: {
+            language: "en-US",
+            imageCount: 3,
+            includeCodeImages: true,
+          },
+          content: document.querySelector("#content").value,
+        };
+
+        try {
+          const response = await fetch(document.querySelector("#webhook").value, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${document.querySelector("#token").value}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          });
+
+          const text = await response.text();
+          if (!response.ok) {
+            throw new Error(text || `HTTP ${response.status}`);
+          }
+
+          const result = JSON.parse(text);
+          rawBox.textContent = JSON.stringify(result, null, 2);
+          rawBox.hidden = false;
+
+          for (const image of result.images || []) {
+            const figure = document.createElement("figure");
+            figure.innerHTML = `
+              <img src="${image.url}" alt="${image.alt || ""}" />
+              <figcaption>${image.title || image.alt || image.type} · ${image.suggestedPlacement || ""}</figcaption>
+              <div class="links">
+                <a href="${image.url}" target="_blank">PNG</a>
+                <a href="${image.svgUrl}" target="_blank">SVG</a>
+                ${image.drawioUrl ? `<a href="${image.drawioUrl}" target="_blank">draw.io</a>` : ""}
+              </div>
+            `;
+            imagesBox.appendChild(figure);
+          }
+
+          statusBox.textContent = `完成：生成 ${(result.images || []).length} 张图片。`;
+        } catch (error) {
+          statusBox.textContent = `失败：${error.message}`;
+        } finally {
+          runButton.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

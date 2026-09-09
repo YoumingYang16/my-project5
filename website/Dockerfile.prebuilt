@@ -1,0 +1,9 @@
+FROM eclipse-temurin:21-jre
+
+WORKDIR /app
+RUN mkdir -p /app/data /app/uploads
+COPY app-prebuilt.jar /app/app.jar
+
+ENV JAVA_OPTS=""
+EXPOSE 8080
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]

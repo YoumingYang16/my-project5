@@ -1,0 +1,122 @@
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:2.14.2
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${N8N_PORT}:5678"
+    environment:
+      GENERIC_TIMEZONE: ${GENERIC_TIMEZONE}
+      TZ: ${TZ}
+      N8N_HOST: ${N8N_HOST}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: ${N8N_PROTOCOL}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+      N8N_PAYLOAD_SIZE_MAX: 32
+      WEBSITE_INTERNAL_URL: http://website:8080
+      RENDERER_INTERNAL_URL: ${RENDERER_INTERNAL_URL}
+      DEEPSEEK_API_KEY: ""
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL}
+    volumes:
+      - n8n_data:/home/node/.n8n
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  renderer-api:
+    build:
+      context: ./image-workflow/renderer-api
+    restart: unless-stopped
+    environment:
+      ASSETS_DIR: /data/assets
+      ASSETS_PUBLIC_URL: ${ASSETS_PUBLIC_URL}
+      COMFYUI_BASE_URL: ${COMFYUI_BASE_URL}
+      COMFYUI_CHECKPOINT: ${COMFYUI_CHECKPOINT}
+      COMFYUI_TIMEOUT_MS: ${COMFYUI_TIMEOUT_MS}
+      COMFYUI_STEPS: ${COMFYUI_STEPS:-30}
+      IMAGE_PROVIDER: ${IMAGE_PROVIDER}
+      QWEN_IMAGE_API_KEY: ""
+      QWEN_IMAGE_API_URL: ${QWEN_IMAGE_API_URL}
+      QWEN_IMAGE_MODEL: ${QWEN_IMAGE_MODEL}
+      GENERATION_VERSION: ${GENERATION_VERSION}
+      IPADAPTER_ENABLED: ${IPADAPTER_ENABLED}
+      IPADAPTER_PRESET: ${IPADAPTER_PRESET}
+      IPADAPTER_STRENGTH: ${IPADAPTER_STRENGTH}
+      OCR_ENABLED: ${OCR_ENABLED}
+      LOCAL_VISION_ENABLED: ${LOCAL_VISION_ENABLED}
+      VISION_MODEL: ${VISION_MODEL}
+      MODEL_CACHE_DIR: /data/model-cache
+      OCR_CACHE_DIR: /data/ocr-cache
+      PORT: 3000
+    volumes:
+      - renderer_assets:/data/assets
+      - renderer_model_cache:/data/model-cache
+      - renderer_ocr_cache:/data/ocr-cache
+    ports:
+      - "127.0.0.1:${RENDERER_PORT}:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  assets-server:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${ASSETS_PORT}:80"
+    volumes:
+      - renderer_assets:/usr/share/nginx/html/assets:ro
+      - ./image-workflow/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - renderer-api
+
+  website:
+    build:
+      context: ./website
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${WEBSITE_PORT}:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: test
+      APP_UPLOAD_DIR: /app/uploads
+      APP_DATA_DIR: /app/data
+      AI_KEY_ENCRYPTION_SECRET: ${AI_KEY_ENCRYPTION_SECRET:-${N8N_ENCRYPTION_KEY}}
+      JWT_SECRET: ${JWT_SECRET:-${N8N_ENCRYPTION_KEY}}
+      APP_ADMIN_USERNAME: ${APP_ADMIN_USERNAME:-}
+      APP_ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD:-}
+      APP_ADMIN_NICKNAME: ${APP_ADMIN_NICKNAME:-Platform administrator}
+      PAPERLENS_TEST_MODE: ${PAPERLENS_TEST_MODE:-false}
+      COMFYUI_OUTPUT_DIR: /app/uploads/generated-covers
+      COMFYUI_RETURN_CANDIDATES: "52"
+      N8N_PAPER_UNDERSTANDING_ENABLED: "true"
+      N8N_PAPER_UNDERSTANDING_URL: http://n8n:5678/webhook/website-single-paper-brief
+      N8N_PAPER_UNDERSTANDING_TIMEOUT_SECONDS: 90
+      AI_UNDERSTANDING_PROVIDER_PRIORITY: deepseek,n8n,evidence_fallback
+      RENDERER_API_ENABLED: "true"
+      RENDERER_API_BASE_URL: http://renderer-api:3000
+      RENDERER_API_IMAGE_PROVIDER_MODE: dual
+      DEEPSEEK_ENABLED: "true"
+      DEEPSEEK_API_KEY: ""
+      DEEPSEEK_USE_SYSTEM_PROXY: "false"
+      PLATFORM_AI_ENABLED: ${PLATFORM_AI_ENABLED:-false}
+      PLATFORM_TEXT_PROVIDER: ${PLATFORM_TEXT_PROVIDER:-deepseek}
+      PLATFORM_TEXT_API_KEY: ${PLATFORM_TEXT_API_KEY:-}
+      PLATFORM_TEXT_MODEL: ${PLATFORM_TEXT_MODEL:-deepseek-v4-flash}
+      PLATFORM_IMAGE_PROVIDER: ${PLATFORM_IMAGE_PROVIDER:-qwen}
+      PLATFORM_IMAGE_API_KEY: ${PLATFORM_IMAGE_API_KEY:-}
+      PLATFORM_IMAGE_MODEL: ${PLATFORM_IMAGE_MODEL:-qwen-image-2.0-pro}
+      AI_COVER_LEGACY_COMFYUI_FALLBACK: "false"
+    volumes:
+      - website_data:/app/data
+      - website_uploads:/app/uploads
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - n8n
+      - renderer-api
+
+volumes:
+  n8n_data:
+  renderer_assets:
+  renderer_model_cache:
+  renderer_ocr_cache:
+  website_data:
+  website_uploads:

@@ -1,0 +1,19 @@
+:80 {
+    encode gzip
+
+    @browserShell {
+        path /
+        path /index.html
+        path /app.js
+        path /style.css
+        path /service-worker.js
+        path /vendor/*
+    }
+    header @browserShell Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+
+    handle /assets/* {
+        reverse_proxy assets-server:80
+    }
+
+    reverse_proxy website:8080
+}

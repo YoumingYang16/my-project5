@@ -1,0 +1,941 @@
+{
+    "id":  "7bF1r4MeLd7YY3UU",
+    "name":  "My workflow 3",
+    "active":  false,
+    "nodes":  [
+                  {
+                      "parameters":  {
+
+                                     },
+                      "type":  "n8n-nodes-base.manualTrigger",
+                      "typeVersion":  1,
+                      "position":  [
+                                       -780,
+                                       -180
+                                   ],
+                      "id":  "4e52a496-baaf-4993-ae0c-db28045dfd06",
+                      "name":  "When clicking Execute workflow"
+                  },
+                  {
+                      "parameters":  {
+                                         "assignments":  {
+                                                             "assignments":  [
+                                                                                 {
+                                                                                     "id":  "manual-title",
+                                                                                     "name":  "title",
+                                                                                     "value":  "Adaptive XR Wayfinding for Dense Museum Exhibitions",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "manual-venue",
+                                                                                     "name":  "venue",
+                                                                                     "value":  "CHI 2026",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "manual-abstract",
+                                                                                     "name":  "abstract",
+                                                                                     "value":  "This paper studies adaptive extended reality cues for helping visitors navigate dense museum exhibitions.",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "manual-content",
+                                                                                     "name":  "content",
+                                                                                     "value":  "The study deploys a smartphone-based augmented reality museum guide in three gallery layouts. Visitors follow navigation cues while viewing physical artifacts. The evaluation compares route clarity, artifact recall, attention, and perceived curatorial coherence. Results indicate that subtle spatial cues improve navigation without pulling attention away from exhibits.",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "manual-id",
+                                                                                     "name":  "id",
+                                                                                     "value":  "manual-xr-museum-test",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "manual-content-source",
+                                                                                     "name":  "contentSource",
+                                                                                     "value":  "manual-fulltext",
+                                                                                     "type":  "string"
+                                                                                 }
+                                                                             ]
+                                                         },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.set",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       -560,
+                                       -180
+                                   ],
+                      "id":  "a47dabda-e7da-4a72-b408-636d5f3cc245",
+                      "name":  "Edit Fields"
+                  },
+                  {
+                      "parameters":  {
+                                         "httpMethod":  "POST",
+                                         "path":  "demo-publication-image",
+                                         "responseMode":  "lastNode",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.webhook",
+                      "typeVersion":  2,
+                      "position":  [
+                                       -780,
+                                       100
+                                   ],
+                      "id":  "website-image-webhook",
+                      "name":  "Website Image Webhook",
+                      "webhookId":  "demo-publication-image"
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const body = $json.body || $json;\nconst title = String(body.title || \u0027\u0027).trim();\nconst abstract = String(body.abstract || \u0027\u0027).trim();\nconst content = String(body.content || abstract).trim().slice(0, 80000);\nif (!title) throw new Error(\u0027Request must include title\u0027);\nif (!content) throw new Error(\u0027Request must include a PDF, content, or abstract\u0027);\nconst inferredFullText = Boolean(body.content \u0026\u0026 String(body.content).trim() !== abstract);\nconst allowedQuality = [\u0027warn\u0027, \u0027strict\u0027, \u0027off\u0027];\nreturn [{\n  json: {\n    inputSource: String(body.inputSource || \u0027api\u0027).trim(),\n    briefOnly: body.briefOnly === true || String(body.inputSource || \u0027\u0027).trim() === \u0027website-brief\u0027,\n    userTaskToken: String(body.userTaskToken || \u0027\u0027).trim(),\n    id: String(body.id || title).trim(),\n    title,\n    venue: String(body.venue || \u0027Publication\u0027).trim(),\n    abstract,\n    content,\n    contentSource: String(body.contentSource || (inferredFullText ? \u0027inline-content\u0027 : \u0027abstract\u0027)).trim(),\n    contentMode: String(body.contentMode || (inferredFullText ? \u0027fulltext\u0027 : \u0027abstract\u0027)).trim(),\n    visualStrategy: String(body.visualStrategy || \u0027\u0027).trim(),\n    strategyLabel: String(body.strategyLabel || \u0027\u0027).trim(),\n    strategyPrompt: String(body.strategyPrompt || \u0027\u0027).trim(),\n    strategyNegativePrompt: String(body.strategyNegativePrompt || \u0027\u0027).trim(),\n    strategyVisualRoles: Array.isArray(body.strategyVisualRoles) ? body.strategyVisualRoles : [],\n    strategyCompositions: Array.isArray(body.strategyCompositions) ? body.strategyCompositions : [],\n    visualFingerprint: body.visualFingerprint \u0026\u0026 typeof body.visualFingerprint === \u0027object\u0027 ? body.visualFingerprint : {},\n    visualAnchors: Array.isArray(body.visualAnchors) ? body.visualAnchors : [],\n    imageSafetyPolicy: Array.isArray(body.imageSafetyPolicy) ? body.imageSafetyPolicy : [],\n    evidenceSnippets: Array.isArray(body.evidenceSnippets) ? body.evidenceSnippets : [],\n    sourceFigures: Array.isArray(body.sourceFigures) ? body.sourceFigures.slice(0, 5) : (Array.isArray(body.figures) ? body.figures.slice(0, 5) : []),\n    referenceImages: Array.isArray(body.referenceImages) ? body.referenceImages.slice(0, 5) : [],\n    referenceMode: [\u0027auto\u0027,\u0027off\u0027,\u0027required\u0027].includes(String(body.referenceMode || \u0027\u0027).toLowerCase()) ? String(body.referenceMode).toLowerCase() : \u0027auto\u0027,\n    referenceStrength: Math.max(0.35, Math.min(Number(body.referenceStrength || 0.6), 0.8)),\n    audience: String(body.audience || \u0027general-public\u0027).trim(),\n    communicationGoal: String(body.communicationGoal || \u0027show-application\u0027).trim(),\n    visualStyle: String(body.visualStyle || body.imageStyle || \u0027auto\u0027).trim(),\n    outputProfile: [\u0027website-header\u0027,\u0027xiaohongshu-cover\u0027].includes(String(body.outputProfile || \u0027\u0027).toLowerCase()) ? String(body.outputProfile).toLowerCase() : \u0027website-header\u0027,\n    aestheticProfile: String(body.aestheticProfile || \u0027auto\u0027).trim().toLowerCase(),\n    styleRecipe: body.styleRecipe \u0026\u0026 typeof body.styleRecipe === \u0027object\u0027 ? body.styleRecipe : {},\n    aestheticRecipe: body.aestheticRecipe \u0026\u0026 typeof body.aestheticRecipe === \u0027object\u0027 ? body.aestheticRecipe : {},\n    outputRecipe: body.outputRecipe \u0026\u0026 typeof body.outputRecipe === \u0027object\u0027 ? body.outputRecipe : {},\n    communicationBrief: body.communicationBrief \u0026\u0026 typeof body.communicationBrief === \u0027object\u0027 ? body.communicationBrief : {},\n    imageProviderMode: [\u0027automatic\u0027, \u0027qwen\u0027, \u0027comfyui\u0027, \u0027dual\u0027].includes(String(body.imageProviderMode || \u0027\u0027).toLowerCase()) ? String(body.imageProviderMode).toLowerCase() : \u0027automatic\u0027,\n    sourcePolicy: String(body.sourcePolicy || \u0027balanced\u0027).trim(),\n    peoplePolicy: String(body.peoplePolicy || body.visualFingerprint?.peoplePolicy || \u0027optional\u0027).trim(),\n    qualityMode: allowedQuality.includes(String(body.qualityMode || \u0027\u0027).toLowerCase()) ? String(body.qualityMode).toLowerCase() : \u0027warn\u0027,\n    sourceImage: String(body.sourceImage || \u0027\u0027).trim(),\n    sourceImageAlt: String(body.sourceImageAlt || \u0027\u0027).trim(),\n    showTitle: body.showTitle !== false,\n  },\n}];"
+                                     },
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       140,
+                                       20
+                                   ],
+                      "id":  "normalize-full-article-input",
+                      "name":  "Normalize Full Article Input"
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const original = $(\u0027Normalize Full Article Input\u0027).first().json;\nconst raw = String($json.choices?.[0]?.message?.content || $json.text || $json.output || $json.response || \u0027\u0027).trim();\nconst allowedTypes = [\u0027algorithm-computational\u0027, \u0027system-interface\u0027, \u0027hci-xr\u0027, \u0027lab-experiment\u0027, \u0027field-study\u0027, \u0027design-cocreation\u0027, \u0027digital-heritage\u0027, \u0027audio-soundscape\u0027, \u0027hardware-wearable\u0027, \u0027review-survey\u0027];\nconst allowedRoles = {\n  \u0027algorithm-computational\u0027: [\u0027source-evidence\u0027, \u0027method-summary\u0027, \u0027editorial-concept\u0027],\n  \u0027system-interface\u0027: [\u0027source-evidence\u0027, \u0027artifact-closeup\u0027, \u0027interaction-scene\u0027],\n  \u0027hci-xr\u0027: [\u0027source-evidence\u0027, \u0027artifact-closeup\u0027, \u0027interaction-scene\u0027, \u0027study-context\u0027],\n  \u0027lab-experiment\u0027: [\u0027source-evidence\u0027, \u0027artifact-closeup\u0027, \u0027study-context\u0027],\n  \u0027field-study\u0027: [\u0027source-evidence\u0027, \u0027study-context\u0027, \u0027interaction-scene\u0027],\n  \u0027design-cocreation\u0027: [\u0027source-evidence\u0027, \u0027artifact-closeup\u0027, \u0027interaction-scene\u0027],\n  \u0027digital-heritage\u0027: [\u0027source-evidence\u0027, \u0027artifact-closeup\u0027, \u0027study-context\u0027],\n  \u0027audio-soundscape\u0027: [\u0027source-evidence\u0027, \u0027artifact-closeup\u0027, \u0027study-context\u0027, \u0027interaction-scene\u0027],\n  \u0027hardware-wearable\u0027: [\u0027source-evidence\u0027, \u0027artifact-closeup\u0027, \u0027interaction-scene\u0027],\n  \u0027review-survey\u0027: [\u0027source-evidence\u0027, \u0027method-summary\u0027, \u0027editorial-concept\u0027],\n};\nfunction cleanModelJson(value) {\n  return value.replace(/^```json\\s*/i, \u0027\u0027).replace(/^```\\s*/i, \u0027\u0027).replace(/```\\s*$/i, \u0027\u0027).trim();\n}\nfunction unique(values, limit = Infinity) {\n  const seen = new Set();\n  const output = [];\n  for (const value of values.flat(Infinity)) {\n    const text = String(value || \u0027\u0027).replace(/\\s+/g, \u0027 \u0027).trim();\n    if (!text) continue;\n    const key = text.toLowerCase();\n    if (seen.has(key)) continue;\n    seen.add(key);\n    output.push(text);\n    if (output.length \u003e= limit) break;\n  }\n  return output;\n}\nfunction titleAnchors(title) {\n  const stop = new Set([\u0027about\u0027,\u0027after\u0027,\u0027based\u0027,\u0027between\u0027,\u0027effect\u0027,\u0027effects\u0027,\u0027enhancing\u0027,\u0027exploring\u0027,\u0027from\u0027,\u0027into\u0027,\u0027study\u0027,\u0027through\u0027,\u0027toward\u0027,\u0027towards\u0027,\u0027using\u0027,\u0027with\u0027,\u0027what\u0027,\u0027when\u0027,\u0027where\u0027,\u0027which\u0027,\u0027while\u0027,\u0027framework\u0027,\u0027approach\u0027,\u0027analysis\u0027,\u0027evaluation\u0027,\u0027design\u0027]);\n  return unique(String(title || \u0027\u0027).toLowerCase().split(/[^a-z0-9]+/).filter((term) =\u003e term.length \u003e= 4 \u0026\u0026 !stop.has(term)), 10);\n}\nconst sourceText = [original.title, original.abstract, original.content, ...(original.sourceFigures || []).map((figure) =\u003e figure.caption || \u0027\u0027)].join(\u0027 \u0027).replace(/\\s+/g, \u0027 \u0027).toLowerCase();\nfunction grounded(value) {\n  const text = String(value || \u0027\u0027).replace(/\\s+/g, \u0027 \u0027).trim().toLowerCase();\n  if (!text) return false;\n  if (sourceText.includes(text)) return true;\n  const words = text.split(/[^a-z0-9]+/).filter((word) =\u003e word.length \u003e= 4);\n  if (!words.length) return false;\n  return words.filter((word) =\u003e sourceText.includes(word)).length \u003e= Math.max(1, Math.ceil(words.length * 0.6));\n}\nlet parsed = {};\ntry { parsed = JSON.parse(cleanModelJson(raw)); } catch { parsed = {}; }\nconst fingerprint = original.visualFingerprint || {};\nconst configuredType = allowedTypes.includes(original.visualStrategy) ? original.visualStrategy : allowedTypes.includes(fingerprint.paperType) ? fingerprint.paperType : \u0027\u0027;\nlet paperType = allowedTypes.includes(parsed.paperType) ? parsed.paperType : configuredType || \u0027system-interface\u0027;\nconst heritageSignals = [\n  /\\bh-?bim\\b/i,\n  /\\bheritage building/i,\n  /\\bhistorical architecture/i,\n  /\\bhistoric(?:al)? building/i,\n  /\\bancient (?:chinese )?architecture/i,\n  /\\bdigital heritage/i,\n  /\\bphotogrammetry/i,\n  /\\blaser scanning/i,\n].filter((pattern) =\u003e pattern.test(sourceText)).length;\nif (heritageSignals \u003e= 2) paperType = \u0027digital-heritage\u0027;\nconst requestedRoles = Array.isArray(original.strategyVisualRoles) \u0026\u0026 original.strategyVisualRoles.length ? original.strategyVisualRoles : allowedRoles[paperType];\nconst roleCandidates = unique([parsed.visualRole, requestedRoles], 8).filter((role) =\u003e allowedRoles[paperType].includes(role));\nconst defaultRole = original.communicationGoal === \u0027explain-method\u0027 \u0026\u0026 [\u0027algorithm-computational\u0027, \u0027review-survey\u0027].includes(paperType)\n  ? \u0027method-summary\u0027\n  : original.visualStyle === \u0027object-closeup\u0027\n    ? \u0027artifact-closeup\u0027\n    : allowedRoles[paperType].includes(\u0027study-context\u0027) ? \u0027study-context\u0027 : allowedRoles[paperType][0];\nconst styleRoleMap = { \u0027documentary-research\u0027: \u0027study-context\u0027, \u0027object-closeup\u0027: \u0027artifact-closeup\u0027, \u0027application-scene\u0027: \u0027interaction-scene\u0027, \u0027academic-editorial\u0027: \u0027editorial-concept\u0027, \u0027architectural-space\u0027: \u0027study-context\u0027, \u0027concise-method\u0027: \u0027method-summary\u0027 };\nconst requestedStyleRole = styleRoleMap[original.visualStyle];\nconst visualRole = requestedStyleRole \u0026\u0026 allowedRoles[paperType].includes(requestedStyleRole) ? requestedStyleRole : roleCandidates[0] || defaultRole;\nconst outputProfiles = {\n  \u0027website-header\u0027: { width: 900, height: 600, promptDirection: \u0027horizontal 3:2 publication thumbnail, one clear subject, readable at small size, no title area required\u0027 },\n  \u0027xiaohongshu-cover\u0027: { width: 1242, height: 1660, promptDirection: \u0027vertical 3:4 science communication cover, reserve calm lower space for programmatic Chinese title\u0027 },\n};\nconst outputProfile = outputProfiles[original.outputProfile] ? original.outputProfile : \u0027website-header\u0027;\nconst outputRecipe = { ...outputProfiles[outputProfile], ...(original.outputRecipe || {}) };\nconst styleDirections = {\n  auto: \u0027choose the clearest evidence-supported composition for the paper type\u0027,\n  \u0027documentary-research\u0027: \u0027credible documentary research scene, natural activity, realistic equipment, no staged stock-photo pose\u0027,\n  \u0027object-closeup\u0027: \u0027one exact paper-supported object fills most of the frame, shallow depth of field, minimal background\u0027,\n  \u0027application-scene\u0027: \u0027show where and how the paper-supported system is used, with the technology remaining clearly visible\u0027,\n  \u0027academic-editorial\u0027: \u0027restrained editorial still life using only concrete domain objects supported by the paper, no generic AI symbolism\u0027,\n  \u0027architectural-space\u0027: \u0027architecture-led composition, accurate material and structural detail, restrained survey equipment, no travel-poster treatment\u0027,\n  \u0027concise-method\u0027: \u0027three or fewer method concepts, plain background, no fake experiment and no dense diagram labels\u0027,\n};\nconst aestheticDirections = {\n  auto: \u0027restrained academic editorial quality with coherent color and lighting\u0027,\n  \u0027natural-realistic\u0027: \u0027soft natural light, truthful materials, low saturation, documentary color, physically plausible scene\u0027,\n  \u0027clear-technical\u0027: \u0027clean neutral background, crisp object separation, cool white light, precise equipment silhouette\u0027,\n  \u0027warm-humanistic\u0027: \u0027warm daylight, tactile cultural materials, calm human-scale atmosphere, restrained earthy accents\u0027,\n  \u0027minimal-premium\u0027: \u0027large negative space, one focal object, refined editorial lighting, quiet white or light gray background\u0027,\n  \u0027vivid-social\u0027: \u0027clear color contrast, immediate focal point, lively but credible science communication aesthetic, uncluttered composition\u0027,\n};\nconst aestheticProfile = String(original.aestheticProfile || \u0027auto\u0027);\nconst aestheticRecipe = { promptDirection: aestheticDirections[aestheticProfile] || aestheticDirections.auto, ...(original.aestheticRecipe || {}) };\nconst styleRecipe = { promptDirection: styleDirections[original.visualStyle] || styleDirections.auto, ...(original.styleRecipe || {}) };\nconst proposedEvidence = Array.isArray(parsed.evidence) ? parsed.evidence : [];\nlet evidence = proposedEvidence.map((item) =\u003e ({\n  claim: String(item?.claim || \u0027\u0027).trim().slice(0, 220),\n  sourceSection: String(item?.sourceSection || \u0027Article\u0027).trim().slice(0, 80),\n  sourceText: String(item?.sourceText || \u0027\u0027).replace(/\\s+/g, \u0027 \u0027).trim().slice(0, 360),\n})).filter((item) =\u003e item.sourceText.length \u003e= 12 \u0026\u0026 grounded(item.sourceText)).slice(0, 5);\nif (!evidence.length) {\n  evidence = unique([original.evidenceSnippets || [], fingerprint.evidenceSnippets || []], 4).map((sourceTextValue) =\u003e ({\n    claim: \u0027Paper-supported visual evidence\u0027,\n    sourceSection: original.contentMode || \u0027Article\u0027,\n    sourceText: String(sourceTextValue).slice(0, 360),\n  }));\n}\nconst anchors = unique([\n  Array.isArray(parsed.uniqueAnchors) ? parsed.uniqueAnchors : [],\n  original.visualAnchors || [],\n  fingerprint.distinctiveTerms || [],\n  titleAnchors(original.title),\n], 12).filter(grounded).slice(0, 8);\nconst uniqueAnchors = unique([anchors, titleAnchors(original.title)], 8).slice(0, 8);\nconst sceneElements = unique([parsed.mainSubject, parsed.environment, parsed.action, parsed.technology, Array.isArray(parsed.supportingObjects) ? parsed.supportingObjects : []], 6).filter(grounded);\nconst mustShow = unique([sceneElements, Array.isArray(parsed.mustShow) ? parsed.mustShow.filter(grounded) : [], uniqueAnchors], 3);\nconst mustAvoid = unique([\n  Array.isArray(parsed.mustAvoid) ? parsed.mustAvoid : [],\n  original.imageSafetyPolicy || [],\n  \u0027readable text\u0027, \u0027fake text\u0027, \u0027random glyphs\u0027, \u0027logos\u0027, \u0027watermarks\u0027, \u0027unsupported equipment\u0027,\n], 16);\nconst configuredPeople = [\u0027none\u0027,\u0027optional\u0027,\u0027required\u0027].includes(original.peoplePolicy) ? original.peoplePolicy : fingerprint.peoplePolicy;\nconst peoplePolicy = [\u0027none\u0027,\u0027optional\u0027,\u0027required\u0027].includes(parsed.peoplePolicy) ? parsed.peoplePolicy : configuredPeople || (visualRole === \u0027interaction-scene\u0027 ? \u0027required\u0027 : \u0027optional\u0027);\nconst evidencedAction = String(parsed.action || mustShow[2] || \u0027\u0027).toLowerCase();\nconst handsRequired = peoplePolicy !== \u0027none\u0027 \u0026\u0026 parsed.handsRequired === true \u0026\u0026 /touch|hold|grasp|wear|adjust|assemble|operate|gesture|tap|press|write|draw/.test(evidencedAction);\nconst configuredCompositions = unique(original.strategyCompositions || [], 2);\nconst styleCompositions = { \u0027documentary-research\u0027: [\u0027study-context\u0027,\u0027artifact-closeup\u0027], \u0027object-closeup\u0027: [\u0027artifact-closeup\u0027,\u0027study-context\u0027], \u0027application-scene\u0027: [\u0027interaction-scene\u0027,\u0027artifact-closeup\u0027], \u0027academic-editorial\u0027: [\u0027editorial-concept\u0027,\u0027artifact-closeup\u0027], \u0027architectural-space\u0027: [\u0027study-context\u0027,\u0027artifact-closeup\u0027], \u0027concise-method\u0027: [\u0027method-summary\u0027,\u0027editorial-concept\u0027] };\nconst selectedCompositions = styleCompositions[original.visualStyle] || configuredCompositions;\nconst roleOne = selectedCompositions[0] || (visualRole === \u0027method-summary\u0027 ? \u0027method-summary\u0027 : visualRole === \u0027study-context\u0027 ? \u0027study-context\u0027 : \u0027artifact-closeup\u0027);\nconst roleTwo = selectedCompositions[1] || (roleOne === \u0027study-context\u0027 ? \u0027artifact-closeup\u0027 : \u0027study-context\u0027);\nconst evidenceRule = \u0027Depict only these paper-supported anchors: \u0027 + mustShow.join(\u0027, \u0027) + \u0027. Do not introduce unsupported devices, places, people, or activities.\u0027;\nconst conflictRule = handsRequired ? \u0027Show only the minimum natural hand interaction required by the evidenced action.\u0027 : \u0027Do not show hands; use an object-led, side, or rear-view composition.\u0027;\nconst recipeRule = [styleRecipe.promptDirection, aestheticRecipe.promptDirection, outputRecipe.promptDirection].filter(Boolean).join(\u0027 \u0027);\nconst basePrompt = String(parsed.prompt || \u0027\u0027).trim();\nconst altPrompt = String(parsed.alternativePrompt || \u0027\u0027).trim();\nconst prompt = [basePrompt, evidenceRule, recipeRule, conflictRule, \u0027First composition role: \u0027 + roleOne + \u0027.\u0027, \u0027One focal subject and no more than three visible elements. No readable text.\u0027].filter(Boolean).join(\u0027 \u0027).slice(0, 4000);\nconst alternativePrompt = [altPrompt || basePrompt, evidenceRule, recipeRule, conflictRule, \u0027Second composition role: \u0027 + roleTwo + \u0027. This view must be visibly different from the first composition. No readable text.\u0027].filter(Boolean).join(\u0027 \u0027).slice(0, 4000);\nconst negativePrompt = unique([\n  String(parsed.negativePrompt || \u0027\u0027).split(\u0027,\u0027),\n  String(original.strategyNegativePrompt || \u0027\u0027).split(\u0027,\u0027),\n  mustAvoid,\n  \u0027extra fingers\u0027, \u0027missing fingers\u0027, \u0027malformed hands\u0027, \u0027duplicate limbs\u0027, \u0027generic research stock photo\u0027, \u0027glowing AI brain\u0027, \u0027poster\u0027, \u0027collage\u0027,\n], 80).join(\u0027, \u0027).slice(0, 2400);\nconst rawSummary = parsed.methodSummary \u0026\u0026 typeof parsed.methodSummary === \u0027object\u0027 ? parsed.methodSummary : {};\nconst methodSummary = [\u0027algorithm-computational\u0027,\u0027review-survey\u0027].includes(paperType) ? {\n  domainLabel: String(rawSummary.domainLabel || original.title).slice(0, 42),\n  inputs: unique(Array.isArray(rawSummary.inputs) ? rawSummary.inputs : uniqueAnchors.slice(0, 3), 3).map((value) =\u003e String(value).slice(0, 24)),\n  fusionLabel: String(rawSummary.fusionLabel || \u0027Evidence synthesis\u0027).slice(0, 30),\n  outcomeLabel: String(rawSummary.outcomeLabel || \u0027Research outcome\u0027).slice(0, 24),\n  benefitLabel: String(rawSummary.benefitLabel || \u0027Transparent summary\u0027).slice(0, 34),\n} : null;\nconst sourceFigureRanking = Array.isArray(parsed.sourceFigureRanking) ? parsed.sourceFigureRanking.slice(0, 5) : [];\nconst forbiddenClaims = /(?:濡絾鐗楅绱庨柛蹇嬪妿閹棙锛冮弽锕傚殝|鐟滄媽顕х花宕囨喆閿濆懎鏋€|閻庣懓鑻崣蹇涘礄閸℃瑢鈧闁谎勫劤閸ㄥ孩绋婄€ｎ剚顏濡壆濮鹃々顐﹀箑椤倿妫冮埡浣瑰殥闁诡剦娼協irst[- ]ever|completely solves|perfectly accurate|guaranteed|revolutionary)/gi;\nconst coreMessage = String(parsed.coreMessage || mustShow.slice(0, 3).join(\u0027, \u0027) || original.title)\n  .replace(forbiddenClaims, \u0027\u0027).replace(/\\s+/g, \u0027 \u0027).trim().slice(0, 180);\nconst coverHeadline = String(parsed.coverHeadline || original.communicationBrief?.coverHeadline || original.title)\n  .replace(forbiddenClaims, \u0027\u0027).replace(/\\s+/g, \u0027 \u0027).trim().slice(0, 44) || original.title.slice(0, 44);\nconst communicationBrief = {\n  briefVersion: \u00271.0\u0027, paperType, audience: original.audience, communicationGoal: original.communicationGoal, coreMessage, coverHeadline, evidence,\n  limitations: unique([Array.isArray(parsed.limitations) ? parsed.limitations : [], original.communicationBrief?.limitations || []], 6),\n  mustAvoidClaims: unique([Array.isArray(parsed.mustAvoidClaims) ? parsed.mustAvoidClaims : [], original.communicationBrief?.mustAvoidClaims || [], \u0027first-ever\u0027, \u0027completely solves\u0027, \u0027perfectly accurate\u0027, \u0027guaranteed\u0027], 12),\n  visual: { mainSubject: String(parsed.mainSubject || mustShow[0] || \u0027\u0027), environment: String(parsed.environment || mustShow[1] || \u0027\u0027), action: String(parsed.action || mustShow[2] || \u0027\u0027), technology: String(parsed.technology || \u0027\u0027), supportingObjects: unique(parsed.supportingObjects || [], 2), forbiddenObjects: unique([parsed.forbiddenObjects || [], mustAvoid], 12), uniqueAnchors, peoplePolicy, handsRequired },\n};\nreturn [{\n  json: {\n    inputSource: original.inputSource || \u0027api\u0027,\n    articleSlug: original.id,\n    title: original.title,\n    venue: original.venue,\n    prompt,\n    prompts: [prompt, alternativePrompt],\n    negativePrompt,\n    alt: String(parsed.alt || (\u0027Evidence-grounded visual for \u0027 + original.title)).slice(0, 500),\n    paperType,\n    visualBrief: { paperType, visualRole, coreMessage, coverHeadline, setting: parsed.setting || \u0027\u0027, subject: mustShow[0] || \u0027\u0027, technology: mustShow[1] || \u0027\u0027, activity: mustShow[2] || \u0027\u0027, evidence },\n    coreMessage,\n    coverHeadline,\n    communicationBrief,\n    outputProfile,\n    aestheticProfile,\n    styleRecipe,\n    aestheticRecipe,\n    outputRecipe,\n    visualMode: paperType,\n    visualRole,\n    evidence,\n    evidenceValidated: evidence.length \u003e 0,\n    mustShow,\n    mustAvoid,\n    uniqueAnchors,\n    methodSummary,\n    sourceFigureRanking,\n    sourceFigures: original.sourceFigures || [],\n    referenceImages: original.sourceFigures || [],\n    referenceMode: [\u0027auto\u0027,\u0027off\u0027,\u0027required\u0027].includes(original.referenceMode) ? original.referenceMode : \u0027auto\u0027,\n    referenceStrength: visualRole === \u0027artifact-closeup\u0027 ? 0.66 : visualRole === \u0027study-context\u0027 ? 0.54 : 0.6,\n    sourcePolicy: original.sourcePolicy,\n    audience: original.audience,\n    communicationGoal: original.communicationGoal,\n    visualStyle: original.visualStyle,\n    imageProviderMode: original.imageProviderMode || \u0027automatic\u0027,\n    visualFingerprint: fingerprint,\n    strategyPrompt: original.strategyPrompt,\n    strategyNegativePrompt: original.strategyNegativePrompt,\n    compositionRoles: [roleOne, roleTwo],\n    peoplePolicy,\n    handsRequired,\n    riskProfile: { ...(fingerprint.riskProfile || {}), peoplePolicy, handsRequired, avoidHands: !handsRequired },\n    sourceImage: original.sourceImage,\n    sourceImageAlt: original.sourceImageAlt,\n    contentSource: original.contentSource,\n    contentMode: original.contentMode,\n    qualityMode: original.qualityMode,\n    maxAttempts: original.qualityMode === \u0027strict\u0027 ? 3 : 1,\n    count: [\u0027algorithm-computational\u0027,\u0027review-survey\u0027].includes(paperType) ? 1 : 2,\n    width: Number(outputRecipe.width || 900),\n    height: Number(outputRecipe.height || 600),\n    showTitle: outputProfile === \u0027xiaohongshu-cover\u0027 \u0026\u0026 original.showTitle !== false,\n    generationVersion: \u0027v4-shared-brief\u0027,\n  },\n}];"
+                                     },
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       660,
+                                       20
+                                   ],
+                      "id":  "parse-visual-brief-json",
+                      "name":  "Parse Visual Brief JSON"
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "={{$env.RENDERER_INTERNAL_URL + \u0027/render/photo\u0027}}",
+                                         "sendHeaders":  true,
+                                         "headerParameters":  {
+                                                                  "parameters":  [
+                                                                                     {
+                                                                                         "name":  "Content-Type",
+                                                                                         "value":  "application/json"
+                                                                                     }
+                                                                                 ]
+                                                              },
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{JSON.stringify($json)}}",
+                                         "options":  {
+                                                         "timeout":  660000
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.4,
+                      "position":  [
+                                       920,
+                                       -60
+                                   ],
+                      "id":  "render-photo-candidates",
+                      "name":  "Render Photo Candidates"
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "={{$env.RENDERER_INTERNAL_URL + \u0027/render/academic-card\u0027}}",
+                                         "sendHeaders":  true,
+                                         "headerParameters":  {
+                                                                  "parameters":  [
+                                                                                     {
+                                                                                         "name":  "Content-Type",
+                                                                                         "value":  "application/json"
+                                                                                     }
+                                                                                 ]
+                                                              },
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{JSON.stringify({\n  articleSlug: $(\u0027Parse Visual Brief JSON\u0027).first().json.articleSlug,\n  title: $(\u0027Parse Visual Brief JSON\u0027).first().json.title,\n  coverHeadline: $(\u0027Parse Visual Brief JSON\u0027).first().json.coverHeadline,\n  showTitle: $(\u0027Parse Visual Brief JSON\u0027).first().json.showTitle,\n  venue: $(\u0027Parse Visual Brief JSON\u0027).first().json.venue,\n  contentSource: $(\u0027Parse Visual Brief JSON\u0027).first().json.contentSource,\n  contentMode: $(\u0027Parse Visual Brief JSON\u0027).first().json.contentMode,\n  visualBrief: $(\u0027Parse Visual Brief JSON\u0027).first().json.visualBrief,\n  visualMode: $(\u0027Parse Visual Brief JSON\u0027).first().json.visualMode,\n  visualStrategy: $(\u0027Parse Visual Brief JSON\u0027).first().json.visualMode,\n  strategyLabel: $(\u0027Parse Visual Brief JSON\u0027).first().json.paperType,\n  methodSummary: $(\u0027Parse Visual Brief JSON\u0027).first().json.methodSummary,\n  visualFingerprint: $(\u0027Parse Visual Brief JSON\u0027).first().json.visualFingerprint,\n  visualAnchors: $(\u0027Parse Visual Brief JSON\u0027).first().json.uniqueAnchors,\n  evidence: $(\u0027Parse Visual Brief JSON\u0027).first().json.evidence,\n  alt: \u0027Deterministic academic thumbnail for \u0027 + $(\u0027Parse Visual Brief JSON\u0027).first().json.title\n})}}",
+                                         "options":  {
+                                                         "timeout":  120000
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.4,
+                      "position":  [
+                                       1160,
+                                       -60
+                                   ],
+                      "id":  "33107b60-f39e-403f-baee-607ae76b7dbc",
+                      "name":  "Render Academic Card"
+                  },
+                  {
+                      "id":  "return-photo-candidates",
+                      "name":  "Return Photo Candidates",
+                      "type":  "n8n-nodes-base.code",
+                      "position":  [
+                                       1400,
+                                       -60
+                                   ],
+                      "parameters":  {
+                                         "jsCode":  "const request = $(\u0027Parse Visual Brief JSON\u0027).first().json;\nconst photoResult = $(\u0027Render Photo Candidates\u0027).first().json;\nconst cardResult = $json;\nconst generated = Array.isArray(photoResult.images) ? photoResult.images : [];\nconst cardImages = Array.isArray(cardResult.images) ? cardResult.images : [];\nconst sourceCovers = Array.isArray(photoResult.sourceCovers) ? photoResult.sourceCovers : [];\nconst images = [];\nconst classifiedReferences = Array.isArray(photoResult.referenceImages) ? photoResult.referenceImages : [];\nfunction referenceKey(item) { return String(item?.id || item?.fileName || item?.url || \u0027\u0027); }\nconst referenceByKey = new Map(classifiedReferences.map((item) =\u003e [referenceKey(item), item]));\nfunction escapeHtml(value) {\n  return String(value || \u0027\u0027).replace(/[\u0026\u003c\u003e\"\u0027]/g, (char) =\u003e ({ \u0027\u0026\u0027: \u0027\u0026amp;\u0027, \u0027\u003c\u0027: \u0027\u0026lt;\u0027, \u0027\u003e\u0027: \u0027\u0026gt;\u0027, \u0027\"\u0027: \u0027\u0026quot;\u0027, \"\u0027\": \u0027\u0026#39;\u0027 })[char]);\n}\nfunction buildFormHtml(items) {\n  const mediaAspect = request.outputProfile === \u0027xiaohongshu-cover\u0027 ? \u00273/4\u0027 : \u00273/2\u0027;\n  const cards = items.map((image, index) =\u003e {\n    const score = image.qualityScore == null ? \u0027\u0027 : \u0027\u003cspan\u003eQuality \u0027 + Math.round(Number(image.qualityScore) * 100) + \u0027%\u003c/span\u003e\u0027;\n    return \u0027\u003carticle\u003e\u003cdiv class=\"media\"\u003e\u003cimg src=\"\u0027 + escapeHtml(image.url) + \u0027\" alt=\"\u0027 + escapeHtml(image.alt || image.title) + \u0027\"\u003e\u003c/div\u003e\u0027\n      + \u0027\u003cdiv class=\"meta\"\u003e\u003cp class=\"type\"\u003e\u0027 + (index + 1) + \u0027. \u0027 + escapeHtml(image.type || \u0027candidate\u0027) + \u0027\u003c/p\u003e\u0027\n      + \u0027\u003cp class=\"detail\"\u003e\u0027 + escapeHtml([\n        image.compositionRole || image.visualRole || \u0027Evidence-grounded candidate\u0027,\n        image.providerStrategy === \u0027ip-adapter\u0027 ? \u0027reference-conditioned\u0027 : \u0027\u0027,\n        image.imageType || \u0027\u0027,\n      ].filter(Boolean).join(\u0027 | \u0027)) + \u0027\u003c/p\u003e\u0027\n      + score + \u0027\u003ca href=\"\u0027 + escapeHtml(image.url) + \u0027\" target=\"_blank\" rel=\"noopener\"\u003eOpen cover\u003c/a\u003e\u0027\n      + (image.rawUrl ? \u0027 鐠?\u003ca href=\"\u0027 + escapeHtml(image.rawUrl) + \u0027\" target=\"_blank\" rel=\"noopener\"\u003eOpen original\u003c/a\u003e\u0027 : \u0027\u0027)\n      + \u0027\u003c/div\u003e\u003c/article\u003e\u0027;\n  }).join(\u0027\u0027);\n  return \u0027\u003cstyle\u003e*{box-sizing:border-box}body{margin:0;padding:28px;background:#f4f6f7;color:#28323a;font:15px/1.5 Arial,sans-serif}main{max-width:1120px;margin:auto}h1{font-size:25px;margin:0 0 6px}header p{margin:0 0 22px;color:#66727a}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px}article{background:#fff;border:1px solid #dce3e7;border-radius:8px;overflow:hidden}.media{aspect-ratio:\u0027 + mediaAspect + \u0027;background:#eef2f4}.media img{display:block;width:100%;height:100%;object-fit:cover}.meta{padding:14px 16px}.type{font-size:17px;font-weight:700;margin:0 0 4px}.detail{min-height:22px;margin:0 0 8px;color:#68747c}.meta span{display:inline-block;margin-right:12px;color:#506d60}.meta a{color:#236fa8;text-decoration:none;font-weight:650}@media(max-width:560px){body{padding:16px}.grid{grid-template-columns:1fr}}\u003c/style\u003e\u0027\n    + \u0027\u003cmain\u003e\u003cheader\u003e\u003ch1\u003eXiaohongshu covers ready\u003c/h1\u003e\u003cp\u003eGenerated \u0027 + items.length + \u0027 candidate image(s). This form does not modify the GitHub website.\u003c/p\u003e\u003c/header\u003e\u003cdiv class=\"grid\"\u003e\u0027 + cards + \u0027\u003c/div\u003e\u003c/main\u003e\u0027;\n}images.push(...sourceCovers);\nconst useRawSources = sourceCovers.length === 0;\nif (useRawSources \u0026\u0026 request.sourcePolicy !== \u0027ai-only\u0027 \u0026\u0026 request.sourceImage) {\n  images.push({\n    type: \u0027source-original\u0027, title: request.title, url: request.sourceImage,\n    alt: request.sourceImageAlt || (\u0027Original publication image for \u0027 + request.title),\n    suggestedPlacement: \u0027Use as the publication list thumbnail\u0027, aiGenerated: false,\n    provider: \u0027publication-source\u0027, anatomyRisk: \u0027none\u0027\n  });\n}\nif (useRawSources \u0026\u0026 request.sourcePolicy !== \u0027ai-only\u0027) {\n  const ranking = new Map((request.sourceFigureRanking || []).map((item, index) =\u003e [String(item.id || \u0027\u0027), index]));\n  const figures = (request.sourceFigures || []).filter((figure) =\u003e figure.url).map((figure) =\u003e ({\n    ...figure,\n    ...(referenceByKey.get(referenceKey(figure)) || {}),\n  })).slice().sort((a, b) =\u003e {\n    const aRank = ranking.has(String(a.id || \u0027\u0027)) ? ranking.get(String(a.id || \u0027\u0027)) : 99;\n    const bRank = ranking.has(String(b.id || \u0027\u0027)) ? ranking.get(String(b.id || \u0027\u0027)) : 99;\n    return aRank - bRank || Number(b.relevanceScore || b.sourceScore || 0) - Number(a.relevanceScore || a.sourceScore || 0);\n  });\n  for (const figure of figures.slice(0, 5)) {\n    images.push({\n      ...figure,\n      type: \u0027source-extracted\u0027,\n      title: request.title,\n      alt: figure.caption || (\u0027Figure extracted from page \u0027 + figure.pageNumber + \u0027 of \u0027 + request.title),\n      suggestedPlacement: \u0027Use as the publication list thumbnail\u0027,\n      aiGenerated: false,\n      provider: \u0027pdfjs-dist\u0027,\n      anatomyRisk: \u0027none\u0027\n    });\n  }\n}\nimages.push(...generated);\nif (!images.length) images.push(...cardImages);\nconst formHtml = buildFormHtml(images);\nreturn [{\n  json: {\n    inputSource: request.inputSource || \u0027api\u0027,\n    formHtml,\n    articleTitle: request.title,\n    articleSlug: request.articleSlug,\n    generatedAt: photoResult.generatedAt || cardResult.generatedAt || new Date().toISOString(),\n    contentSource: request.contentSource,\n    contentMode: request.contentMode,\n    paperType: request.paperType,\n    coreMessage: request.coreMessage,\n    coverHeadline: request.coverHeadline,\n    generationVersion: photoResult.generationVersion || \u0027v3-xhs-evidence\u0027,\n    audience: request.audience,\n    communicationGoal: request.communicationGoal,\n    communicationBrief: request.communicationBrief || {},\n    outputProfile: request.outputProfile || \u0027website-header\u0027,\n    aestheticProfile: request.aestheticProfile || \u0027auto\u0027,\n    visualStyle: request.visualStyle || \u0027auto\u0027,\n    handsRequired: request.handsRequired === true,\n    visualBrief: request.visualBrief,\n    visualMode: request.visualMode,\n    visualRole: request.visualRole,\n    visualFingerprint: request.visualFingerprint,\n    evidence: request.evidence,\n    evidenceValidated: request.evidenceValidated,\n    mustShow: request.mustShow,\n    mustAvoid: request.mustAvoid,\n    uniqueAnchors: request.uniqueAnchors,\n    compositionRoles: request.compositionRoles,\n    peoplePolicy: request.peoplePolicy,\n    methodSummary: request.methodSummary,\n    prompt: request.prompt,\n    prompts: request.prompts,\n    negativePrompt: request.negativePrompt,\n    qualityMode: request.qualityMode,\n    referenceMode: photoResult.referenceMode || request.referenceMode,\n    referenceStrength: photoResult.referenceStrength || request.referenceStrength,\n    referenceImages: classifiedReferences,\n    referenceSelection: photoResult.referenceSelection || null,\n    providerStrategy: photoResult.providerStrategy || \u0027text-to-image\u0027,\n    images\n  }\n}];"
+                                     },
+                      "typeVersion":  2
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "={{$json.userTaskToken ? $env.WEBSITE_INTERNAL_URL + \u0027/api/internal/n8n/deepseek\u0027 : \u0027https://api.deepseek.com/chat/completions\u0027}}",
+                                         "sendHeaders":  true,
+                                         "headerParameters":  {
+                                                                  "parameters":  [
+                                                                                     {
+                                                                                         "name":  "Content-Type",
+                                                                                         "value":  "application/json"
+                                                                                     },
+                                                                                     {
+                                                                                         "name":  "Authorization",
+                                                                                         "value":  "={{$json.userTaskToken ? \u0027\u0027 : \u0027Bearer \u0027 + $env.DEEPSEEK_API_KEY}}"
+                                                                                     },
+                                                                                     {
+                                                                                         "name":  "X-Website-DeepSeek-Task-Token",
+                                                                                         "value":  "={{$json.userTaskToken || \u0027\u0027}}"
+                                                                                     }
+                                                                                 ]
+                                                              },
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{JSON.stringify({\n  model: $env.DEEPSEEK_MODEL || \u0027deepseek-chat\u0027,\n  temperature: 0.2,\n  max_tokens: 2800,\n  thinking: { type: \u0027disabled\u0027 },\n  stream: false,\n  response_format: { type: \u0027json_object\u0027 },\n  messages: [\n    {\n      role: \u0027system\u0027,\n      content: `You are an evidence-focused academic visual editor. Return strict JSON only. Required keys: paperType, visualRole, coreMessage, coverHeadline, evidence, limitations, mustAvoidClaims, mainSubject, environment, action, technology, supportingObjects, forbiddenObjects, uniqueAnchors, peoplePolicy, handsRequired, methodSummary, prompt, alternativePrompt, negativePrompt, alt, sourceFigureRanking. paperType must be one of algorithm-computational, system-interface, hci-xr, lab-experiment, field-study, design-cocreation, digital-heritage, audio-soundscape, hardware-wearable, review-survey. visualRole must be one of source-evidence, artifact-closeup, study-context, interaction-scene, method-summary, editorial-concept. evidence is an array of up to five objects with claim, sourceSection, and sourceText. sourceText must be a short verbatim excerpt from the supplied title, abstract, article text, or figure caption. Every object, device, person, place, material, and activity in mustShow and the prompts must be supported by evidence. Never invent a brand, author appearance, location, device, participant, experiment, or result. mainSubject, environment, action, technology, supportingObjects, and forbiddenObjects form a single concrete scene specification. Use one main subject, one environment, one action, one technology, and at most two supporting objects. uniqueAnchors must contain three to eight concrete paper-specific nouns or short noun phrases. Avoid generic anchors such as researcher, technology, laboratory, computer, data, or AI. For computational or review papers, prefer method-summary or a restrained concrete application-domain still life and do not invent an experiment. For empirical papers, choose an artifact, study context, or interaction supported by the paper. prompt and alternativePrompt must use clearly different composition roles. Resolve conflicts explicitly: handsRequired may be true only when the evidenced action cannot be shown without a hand; otherwise avoid visible hands. Respect the requested output profile, visual style recipe, and aesthetic recipe. Compose for the requested output profile: use 3:2 for website-header and 3:4 for xiaohongshu-cover, with one focal subject, few elements, and quiet space for optional programmatic title layout. Never request readable text, labels, logos, equations, charts with labels, or a poster. The image model creates a text-free background only. coverHeadline must be concise Chinese, understandable to the selected audience, supported by the paper, and must not use hype such as first-ever, completely solves, perfectly accurate, revolutionary, or guaranteed. peoplePolicy is none, optional, or required. methodSummary is null unless a deterministic method visual is suitable; when used, include domainLabel, inputs (maximum three), fusionLabel, outcomeLabel, and benefitLabel using short terms found in the paper. sourceFigureRanking ranks supplied figure ids by relevance and explains each choice. Write concise English values.`\n    },\n    {\n      role: \u0027user\u0027,\n      content: \u0027Title: \u0027 + $json.title\n        + \u0027\\nVenue: \u0027 + $json.venue\n        + \u0027\\nAbstract: \u0027 + $json.abstract\n        + \u0027\\nContent source: \u0027 + $json.contentSource\n        + \u0027\\nContent mode: \u0027 + $json.contentMode\n        + \u0027\\nTarget audience: \u0027 + $json.audience\n        + \u0027\\nCommunication goal: \u0027 + $json.communicationGoal\n        + \u0027\\nOutput profile: \u0027 + $json.outputProfile\n        + \u0027\\nVisual style: \u0027 + $json.visualStyle\n        + \u0027\\nAesthetic profile: \u0027 + $json.aestheticProfile\n        + \u0027\\nStyle recipe: \u0027 + JSON.stringify($json.styleRecipe || {})\n        + \u0027\\nAesthetic recipe: \u0027 + JSON.stringify($json.aestheticRecipe || {})\n        + \u0027\\nExisting shared communication brief: \u0027 + JSON.stringify($json.communicationBrief || {})\n        + \u0027\\nSource policy: \u0027 + $json.sourcePolicy\n        + \u0027\\nConfigured paper type: \u0027 + ($json.visualStrategy || \u0027\u0027)\n        + \u0027\\nConfigured label: \u0027 + ($json.strategyLabel || \u0027\u0027)\n        + \u0027\\nAllowed visual roles: \u0027 + ($json.strategyVisualRoles || []).join(\u0027, \u0027)\n        + \u0027\\nComposition roles: \u0027 + ($json.strategyCompositions || []).join(\u0027, \u0027)\n        + \u0027\\nConfigured direction: \u0027 + ($json.strategyPrompt || \u0027\u0027)\n        + \u0027\\nExisting evidence snippets: \u0027 + ($json.evidenceSnippets || []).join(\u0027 | \u0027)\n        + \u0027\\nPDF figure candidates: \u0027 + JSON.stringify(($json.sourceFigures || []).map((figure) =\u003e ({ id: figure.id, pageNumber: figure.pageNumber, caption: figure.caption, sourceScore: figure.sourceScore })))\n        + \u0027\\n\\nCleaned article text:\\n\u0027 + $json.content\n    }\n  ]\n})}}",
+                                         "options":  {
+                                                         "timeout":  90000
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.4,
+                      "position":  [
+                                       400,
+                                       20
+                                   ],
+                      "id":  "generate-visual-brief-http",
+                      "name":  "Generate Visual Brief HTTP"
+                  },
+                  {
+                      "parameters":  {
+                                         "formTitle":  "Evidence-grounded Xiaohongshu paper cover",
+                                         "formDescription":  "Upload a paper, choose its audience and communication goal, then review three evidence-grounded 3:4 cover candidates.",
+                                         "formFields":  {
+                                                            "values":  [
+                                                                           {
+                                                                               "fieldLabel":  "Paper title",
+                                                                               "fieldName":  "title",
+                                                                               "fieldType":  "text",
+                                                                               "placeholder":  "Publication title",
+                                                                               "requiredField":  true
+                                                                           },
+                                                                           {
+                                                                               "fieldLabel":  "Abstract",
+                                                                               "fieldName":  "abstract",
+                                                                               "fieldType":  "textarea",
+                                                                               "placeholder":  "Paste an abstract when no PDF is available",
+                                                                               "requiredField":  false
+                                                                           },
+                                                                           {
+                                                                               "fieldLabel":  "Full text",
+                                                                               "fieldName":  "content",
+                                                                               "fieldType":  "textarea",
+                                                                               "placeholder":  "Optional cleaned full text",
+                                                                               "requiredField":  false
+                                                                           },
+                                                                           {
+                                                                               "fieldLabel":  "PDF file",
+                                                                               "fieldName":  "paper_pdf",
+                                                                               "fieldType":  "file",
+                                                                               "multipleFiles":  false,
+                                                                               "acceptFileTypes":  ".pdf",
+                                                                               "requiredField":  false
+                                                                           },
+                                                                           {
+                                                                               "fieldLabel":  "Target audience",
+                                                                               "fieldName":  "audience",
+                                                                               "fieldType":  "dropdown",
+                                                                               "fieldOptions":  {
+                                                                                                    "values":  [
+                                                                                                                   {
+                                                                                                                       "option":  "General public"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "Students"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "Practitioners"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "Researchers"
+                                                                                                                   }
+                                                                                                               ]
+                                                                                                },
+                                                                               "defaultValue":  "General public",
+                                                                               "requiredField":  true
+                                                                           },
+                                                                           {
+                                                                               "fieldLabel":  "Communication goal",
+                                                                               "fieldName":  "communication_goal",
+                                                                               "fieldType":  "dropdown",
+                                                                               "fieldOptions":  {
+                                                                                                    "values":  [
+                                                                                                                   {
+                                                                                                                       "option":  "Show application"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "Explain method"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "Attract attention"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "Start discussion"
+                                                                                                                   }
+                                                                                                               ]
+                                                                                                },
+                                                                               "defaultValue":  "Show application",
+                                                                               "requiredField":  true
+                                                                           },
+                                                                           {
+                                                                               "fieldLabel":  "Output use",
+                                                                               "fieldName":  "output_use",
+                                                                               "fieldType":  "dropdown",
+                                                                               "defaultValue":  "Website header",
+                                                                               "fieldOptions":  {
+                                                                                                    "values":  [
+                                                                                                                   {
+                                                                                                                       "option":  "Website header"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "Xiaohongshu cover"
+                                                                                                                   }
+                                                                                                               ]
+                                                                                                }
+                                                                           },
+                                                                           {
+                                                                               "fieldLabel":  "Aesthetic character",
+                                                                               "fieldName":  "aesthetic_character",
+                                                                               "fieldType":  "dropdown",
+                                                                               "defaultValue":  "Automatic",
+                                                                               "fieldOptions":  {
+                                                                                                    "values":  [
+                                                                                                                   {
+                                                                                                                       "option":  "Automatic"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "Natural realistic"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "Clear technical"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "Warm humanistic"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "Minimal premium"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "Vivid social"
+                                                                                                                   }
+                                                                                                               ]
+                                                                                                }
+                                                                           },
+                                                                           {
+                                                                               "fieldLabel":  "Visual style",
+                                                                               "fieldName":  "visual_style",
+                                                                               "fieldType":  "dropdown",
+                                                                               "fieldOptions":  {
+                                                                                                    "values":  [
+                                                                                                                   {
+                                                                                                                       "option":  "Automatic"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "Documentary research"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "Object close-up"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "Application scene"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "Academic editorial"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "Architectural space"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "Concise method"
+                                                                                                                   }
+                                                                                                               ]
+                                                                                                },
+                                                                               "defaultValue":  "Automatic",
+                                                                               "requiredField":  true
+                                                                           },
+                                                                           {
+                                                                               "fieldLabel":  "Image generator",
+                                                                               "fieldName":  "image_generator",
+                                                                               "fieldType":  "dropdown",
+                                                                               "fieldOptions":  {
+                                                                                                    "values":  [
+                                                                                                                   {
+                                                                                                                       "option":  "Automatic (Qwen default)"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "Qwen only"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "ComfyUI only"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "Qwen + ComfyUI"
+                                                                                                                   }
+                                                                                                               ]
+                                                                                                },
+                                                                               "defaultValue":  "Automatic (Qwen default)",
+                                                                               "requiredField":  true
+                                                                           },
+                                                                           {
+                                                                               "fieldLabel":  "Source policy",
+                                                                               "fieldName":  "source_policy",
+                                                                               "fieldType":  "dropdown",
+                                                                               "fieldOptions":  {
+                                                                                                    "values":  [
+                                                                                                                   {
+                                                                                                                       "option":  "Prefer paper figures"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "Balanced"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "AI only"
+                                                                                                                   }
+                                                                                                               ]
+                                                                                                },
+                                                                               "defaultValue":  "Prefer paper figures",
+                                                                               "requiredField":  true
+                                                                           },
+                                                                           {
+                                                                               "fieldLabel":  "Reference image mode",
+                                                                               "fieldName":  "reference_mode",
+                                                                               "fieldType":  "dropdown",
+                                                                               "fieldOptions":  {
+                                                                                                    "values":  [
+                                                                                                                   {
+                                                                                                                       "option":  "Auto"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "Off"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "Required"
+                                                                                                                   }
+                                                                                                               ]
+                                                                                                },
+                                                                               "defaultValue":  "Auto",
+                                                                               "requiredField":  true
+                                                                           },
+                                                                           {
+                                                                               "fieldLabel":  "Quality mode",
+                                                                               "fieldName":  "quality_mode",
+                                                                               "fieldType":  "dropdown",
+                                                                               "fieldOptions":  {
+                                                                                                    "values":  [
+                                                                                                                   {
+                                                                                                                       "option":  "Strict"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "Warn"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "Off"
+                                                                                                                   }
+                                                                                                               ]
+                                                                                                },
+                                                                               "defaultValue":  "Strict",
+                                                                               "requiredField":  true
+                                                                           },
+                                                                           {
+                                                                               "fieldLabel":  "Cover title",
+                                                                               "fieldName":  "show_title",
+                                                                               "fieldType":  "dropdown",
+                                                                               "fieldOptions":  {
+                                                                                                    "values":  [
+                                                                                                                   {
+                                                                                                                       "option":  "Show title"
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "option":  "Image only"
+                                                                                                                   }
+                                                                                                               ]
+                                                                                                },
+                                                                               "defaultValue":  "Show title",
+                                                                               "requiredField":  true
+                                                                           }
+                                                                       ]
+                                                        },
+                                         "responseMode":  "lastNode",
+                                         "options":  {
+                                                         "path":  "paper-image-form",
+                                                         "buttonLabel":  "Generate Xiaohongshu covers",
+                                                         "appendAttribution":  false
+                                                     }
+                                     },
+                      "id":  "paper-image-form-trigger",
+                      "name":  "Paper Image Form",
+                      "type":  "n8n-nodes-base.formTrigger",
+                      "typeVersion":  2.4,
+                      "position":  [
+                                       -820,
+                                       320
+                                   ],
+                      "webhookId":  "paper-image-form"
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "options":  {
+                                                                            "caseSensitive":  true,
+                                                                            "leftValue":  "",
+                                                                            "typeValidation":  "strict",
+                                                                            "version":  2
+                                                                        },
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "id":  "form-has-pdf-condition",
+                                                                                   "leftValue":  "={{ Boolean($binary \u0026\u0026 $binary.paper_pdf) }}",
+                                                                                   "rightValue":  "",
+                                                                                   "operator":  {
+                                                                                                    "type":  "boolean",
+                                                                                                    "operation":  "true",
+                                                                                                    "singleValue":  true
+                                                                                                }
+                                                                               }
+                                                                           ],
+                                                            "combinator":  "and"
+                                                        },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "form-has-pdf",
+                      "name":  "Form Has PDF",
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2.2,
+                      "position":  [
+                                       -580,
+                                       320
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "={{$env.RENDERER_INTERNAL_URL + \u0027/extract/pdf?id=\u0027 + encodeURIComponent($(\u0027Paper Image Form\u0027).first().json.title || \u0027form-paper\u0027)}}",
+                                         "sendBody":  true,
+                                         "contentType":  "binaryData",
+                                         "inputDataFieldName":  "paper_pdf",
+                                         "options":  {
+                                                         "timeout":  180000
+                                                     }
+                                     },
+                      "id":  "extract-pdf-from-form",
+                      "name":  "Extract PDF From Form",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.4,
+                      "position":  [
+                                       -350,
+                                       260
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const form = $(\u0027Paper Image Form\u0027).first().json;\nconst extraction = $json \u0026\u0026 typeof $json === \u0027object\u0027 \u0026\u0026 $json.contentMode ? $json : {};\nconst mapValue = (value, mappings, fallback) =\u003e mappings[String(value || \u0027\u0027).trim().toLowerCase()] || fallback;\nconst fileName = Object.values($(\u0027Paper Image Form\u0027).first().binary || {})[0]?.fileName || \u0027\u0027;\nreturn [{\n  json: {\n    body: {\n      inputSource: \u0027form\u0027,\n      id: String(form.id || form.title || fileName || \u0027form-paper\u0027).replace(/\\.pdf$/i, \u0027\u0027),\n      title: String(form.title || fileName || \u0027Untitled paper\u0027).replace(/\\.pdf$/i, \u0027\u0027),\n      venue: String(form.venue || \u0027Single paper form\u0027),\n      abstract: String(form.abstract || \u0027\u0027),\n      content: String(extraction.content || form.content || form.abstract || \u0027\u0027),\n      contentMode: extraction.contentMode || (form.content ? \u0027fulltext\u0027 : \u0027abstract\u0027),\n      contentSource: extraction.contentSource || (form.content ? \u0027form-content\u0027 : \u0027form-abstract\u0027),\n      sourceFigures: Array.isArray(extraction.sourceFigures) ? extraction.sourceFigures : [],\n      audience: mapValue(form.audience, { \u0027general public\u0027: \u0027general-public\u0027, students: \u0027students\u0027, practitioners: \u0027practitioners\u0027, researchers: \u0027researchers\u0027 }, \u0027general-public\u0027),\n      communicationGoal: mapValue(form.communication_goal, { \u0027show application\u0027: \u0027show-application\u0027, \u0027explain method\u0027: \u0027explain-method\u0027, \u0027attract attention\u0027: \u0027attract-attention\u0027, \u0027start discussion\u0027: \u0027start-discussion\u0027 }, \u0027show-application\u0027),\n      visualStyle: mapValue(form.visual_style, { automatic: \u0027auto\u0027, auto: \u0027auto\u0027, \u0027documentary research\u0027: \u0027documentary-research\u0027, \u0027documentary scene\u0027: \u0027documentary-research\u0027, \u0027object close-up\u0027: \u0027object-closeup\u0027, \u0027application scene\u0027: \u0027application-scene\u0027, \u0027academic editorial\u0027: \u0027academic-editorial\u0027, \u0027architectural space\u0027: \u0027architectural-space\u0027, \u0027concise method\u0027: \u0027concise-method\u0027, \u0027clean concept\u0027: \u0027concise-method\u0027 }, \u0027auto\u0027),\n      outputProfile: mapValue(form.output_use, { \u0027website header\u0027: \u0027website-header\u0027, \u0027xiaohongshu cover\u0027: \u0027xiaohongshu-cover\u0027 }, \u0027website-header\u0027),\n      aestheticProfile: mapValue(form.aesthetic_character, { automatic: \u0027auto\u0027, \u0027natural realistic\u0027: \u0027natural-realistic\u0027, \u0027clear technical\u0027: \u0027clear-technical\u0027, \u0027warm humanistic\u0027: \u0027warm-humanistic\u0027, \u0027minimal premium\u0027: \u0027minimal-premium\u0027, \u0027vivid social\u0027: \u0027vivid-social\u0027 }, \u0027auto\u0027),\n      imageProviderMode: mapValue(form.image_generator, { \u0027automatic (qwen default)\u0027: \u0027automatic\u0027, \u0027qwen only\u0027: \u0027qwen\u0027, \u0027comfyui only\u0027: \u0027comfyui\u0027, \u0027qwen + comfyui\u0027: \u0027dual\u0027 }, \u0027automatic\u0027),\n      sourcePolicy: mapValue(form.source_policy, { \u0027prefer paper figures\u0027: \u0027prefer-paper\u0027, balanced: \u0027balanced\u0027, \u0027ai only\u0027: \u0027ai-only\u0027 }, \u0027prefer-paper\u0027),\n      referenceMode: mapValue(form.reference_mode, { auto: \u0027auto\u0027, off: \u0027off\u0027, required: \u0027required\u0027 }, \u0027auto\u0027),\n      referenceStrength: 0.6,\n      qualityMode: mapValue(form.quality_mode, { strict: \u0027strict\u0027, warn: \u0027warn\u0027, off: \u0027off\u0027 }, \u0027strict\u0027),\n      showTitle: mapValue(form.output_use, { \u0027website header\u0027: false, \u0027xiaohongshu cover\u0027: String(form.show_title || \u0027Show title\u0027).toLowerCase() !== \u0027image only\u0027 }, false),\n    },\n  },\n}];"
+                                     },
+                      "id":  "prepare-form-input",
+                      "name":  "Prepare Form Input",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       -110,
+                                       320
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "options":  {
+                                                                            "caseSensitive":  true,
+                                                                            "leftValue":  "",
+                                                                            "typeValidation":  "strict",
+                                                                            "version":  2
+                                                                        },
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "id":  "is-form-submission-condition",
+                                                                                   "leftValue":  "={{ $json.inputSource }}",
+                                                                                   "rightValue":  "form",
+                                                                                   "operator":  {
+                                                                                                    "type":  "string",
+                                                                                                    "operation":  "equals",
+                                                                                                    "name":  "filter.operator.equals"
+                                                                                                }
+                                                                               }
+                                                                           ],
+                                                            "combinator":  "and"
+                                                        },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2.2,
+                      "position":  [
+                                       1640,
+                                       -60
+                                   ],
+                      "id":  "is-form-submission",
+                      "name":  "Is Form Submission"
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "completion",
+                                         "completionTitle":  "Paper images ready",
+                                         "options":  {
+
+                                                     },
+                                         "respondWith":  "showText",
+                                         "responseText":  "={{ $json.formHtml }}"
+                                     },
+                      "type":  "n8n-nodes-base.form",
+                      "typeVersion":  2.4,
+                      "position":  [
+                                       1880,
+                                       -140
+                                   ],
+                      "id":  "show-form-results",
+                      "name":  "Show Form Results",
+                      "webhookId":  "paper-image-form-results"
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "return $input.all();"
+                                     },
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       1880,
+                                       40
+                                   ],
+                      "id":  "return-api-response",
+                      "name":  "Return API Response"
+                  },
+                  {
+                      "parameters":  {
+                                         "httpMethod":  "POST",
+                                         "path":  "website-single-paper-brief",
+                                         "responseMode":  "lastNode",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.webhook",
+                      "typeVersion":  2,
+                      "position":  [
+                                       -780,
+                                       300
+                                   ],
+                      "id":  "website-single-paper-brief-webhook",
+                      "name":  "Website Single Paper Brief Webhook",
+                      "webhookId":  "website-single-paper-brief"
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "options":  {
+                                                                            "caseSensitive":  true,
+                                                                            "leftValue":  "",
+                                                                            "typeValidation":  "strict",
+                                                                            "version":  2
+                                                                        },
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "id":  "is-website-brief-condition",
+                                                                                   "leftValue":  "={{ $json.inputSource }}",
+                                                                                   "rightValue":  "website-brief",
+                                                                                   "operator":  {
+                                                                                                    "type":  "string",
+                                                                                                    "operation":  "equals",
+                                                                                                    "name":  "filter.operator.equals"
+                                                                                                }
+                                                                               }
+                                                                           ],
+                                                            "combinator":  "and"
+                                                        },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2.2,
+                      "position":  [
+                                       720,
+                                       20
+                                   ],
+                      "id":  "is-website-brief-request",
+                      "name":  "Is Website Brief Request"
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const brief = $json;\nconst compact = (value, fallback = \u0027\u0027) =\u003e String(value || fallback).replace(/\\s+/g, \u0027 \u0027).trim();\nconst unique = (values, limit = 12) =\u003e [...new Set(values.flat(Infinity).map((value) =\u003e compact(value)).filter(Boolean))].slice(0, limit);\nconst mustShow = unique(brief.mustShow || [], 8);\nconst mustAvoid = unique(brief.mustAvoid || [], 16);\nconst anchors = unique(brief.uniqueAnchors || [], 10);\nconst visual = brief.visualBrief || {};\nconst core = compact(brief.coreMessage, brief.title);\nconst technology = compact(visual.technology, mustShow[0] || anchors[0] || core);\nconst environment = compact(visual.setting, mustShow[1] || brief.communicationBrief?.visual?.environment || \u0027\u0027);\nconst activity = compact(visual.activity, mustShow[2] || brief.communicationBrief?.visual?.action || \u0027\u0027);\nconst visualRole = compact(brief.visualRole, \u0027editorial-concept\u0027);\nconst interactions = [\u0027interaction-scene\u0027, \u0027study-context\u0027].includes(visualRole) \u0026\u0026 activity ? [activity] : [];\nconst visibleEntities = unique([mustShow, anchors], 12);\nreturn [{ json: {\n  title: compact(brief.title),\n  abstractSummary: core,\n  authors: [],\n  year: null,\n  researchProblem: core,\n  targetUsersOrDomain: compact(brief.audience, \u0027general-public\u0027),\n  method: technology,\n  keyImplementation: technology,\n  keyContribution: core,\n  importantSystemComponents: anchors,\n  inputOutputRelationship: mustShow.join(\u0027 -\u003e \u0027),\n  whyItMatters: core,\n  possibleVisualMetaphor: compact(brief.prompt),\n  alternativeVisualMetaphor: compact((brief.prompts || [])[1]),\n  forbiddenVisualElements: mustAvoid,\n  likelyApplicationScenario: unique([environment, activity], 2).join(\u0027; \u0027),\n  visualizableEntities: visibleEntities,\n  visualizableInteractions: interactions,\n  visualizableEnvironment: environment,\n  warnings: brief.evidenceValidated ? [] : [\u0027The shared n8n brief contains limited directly quoted evidence.\u0027],\n  confidenceLevel: brief.evidenceValidated ? \u0027HIGH\u0027 : \u0027MEDIUM\u0027,\n  venue: compact(brief.venue),\n  proposedSystemOrMethod: technology,\n  visibleInterfaceOrDevice: mustShow[0] || anchors[0] || \u0027\u0027,\n  visibleInput: mustShow[1] || \u0027\u0027,\n  visibleOutput: mustShow[2] || \u0027\u0027,\n  expectedOutcome: core,\n  mustShowElements: mustShow,\n  mustAvoidElements: mustAvoid,\n  applicationEnvironment: environment,\n  mainTaskOrWorkflow: activity,\n  visibleInteraction: interactions[0] || \u0027\u0027,\n  paperType: compact(brief.paperType, \u0027system-interface\u0027),\n  visualRole,\n  compositionRoles: unique(brief.compositionRoles || [], 2),\n  peoplePolicy: compact(brief.peoplePolicy, \u0027optional\u0027),\n  handsRequired: brief.handsRequired === true\n} }];"
+                                     },
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       980,
+                                       -80
+                                   ],
+                      "id":  "map-website-paper-understanding",
+                      "name":  "Map Website Paper Understanding"
+                  }
+              ],
+    "connections":  {
+                        "When clicking Execute workflow":  {
+                                                               "main":  [
+                                                                            [
+                                                                                {
+                                                                                    "node":  "Edit Fields",
+                                                                                    "type":  "main",
+                                                                                    "index":  0
+                                                                                }
+                                                                            ]
+                                                                        ]
+                                                           },
+                        "Edit Fields":  {
+                                            "main":  [
+                                                         [
+                                                             {
+                                                                 "node":  "Normalize Full Article Input",
+                                                                 "type":  "main",
+                                                                 "index":  0
+                                                             }
+                                                         ]
+                                                     ]
+                                        },
+                        "Website Image Webhook":  {
+                                                      "main":  [
+                                                                   [
+                                                                       {
+                                                                           "node":  "Normalize Full Article Input",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       }
+                                                                   ]
+                                                               ]
+                                                  },
+                        "Paper Image Form":  {
+                                                 "main":  [
+                                                              [
+                                                                  {
+                                                                      "node":  "Form Has PDF",
+                                                                      "type":  "main",
+                                                                      "index":  0
+                                                                  }
+                                                              ]
+                                                          ]
+                                             },
+                        "Form Has PDF":  {
+                                             "main":  [
+                                                          [
+                                                              {
+                                                                  "node":  "Extract PDF From Form",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ],
+                                                          [
+                                                              {
+                                                                  "node":  "Prepare Form Input",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ]
+                                                      ]
+                                         },
+                        "Extract PDF From Form":  {
+                                                      "main":  [
+                                                                   [
+                                                                       {
+                                                                           "node":  "Prepare Form Input",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       }
+                                                                   ]
+                                                               ]
+                                                  },
+                        "Prepare Form Input":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Normalize Full Article Input",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "Normalize Full Article Input":  {
+                                                             "main":  [
+                                                                          [
+                                                                              {
+                                                                                  "node":  "Generate Visual Brief HTTP",
+                                                                                  "type":  "main",
+                                                                                  "index":  0
+                                                                              }
+                                                                          ]
+                                                                      ]
+                                                         },
+                        "Generate Visual Brief HTTP":  {
+                                                           "main":  [
+                                                                        [
+                                                                            {
+                                                                                "node":  "Parse Visual Brief JSON",
+                                                                                "type":  "main",
+                                                                                "index":  0
+                                                                            }
+                                                                        ]
+                                                                    ]
+                                                       },
+                        "Parse Visual Brief JSON":  {
+                                                        "main":  [
+                                                                     [
+                                                                         {
+                                                                             "node":  "Is Website Brief Request",
+                                                                             "type":  "main",
+                                                                             "index":  0
+                                                                         }
+                                                                     ]
+                                                                 ]
+                                                    },
+                        "Render Photo Candidates":  {
+                                                        "main":  [
+                                                                     [
+                                                                         {
+                                                                             "node":  "Render Academic Card",
+                                                                             "type":  "main",
+                                                                             "index":  0
+                                                                         }
+                                                                     ]
+                                                                 ]
+                                                    },
+                        "Render Academic Card":  {
+                                                     "main":  [
+                                                                  [
+                                                                      {
+                                                                          "node":  "Return Photo Candidates",
+                                                                          "type":  "main",
+                                                                          "index":  0
+                                                                      }
+                                                                  ]
+                                                              ]
+                                                 },
+                        "Return Photo Candidates":  {
+                                                        "main":  [
+                                                                     [
+                                                                         {
+                                                                             "node":  "Is Form Submission",
+                                                                             "type":  "main",
+                                                                             "index":  0
+                                                                         }
+                                                                     ]
+                                                                 ]
+                                                    },
+                        "Is Form Submission":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Show Form Results",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ],
+                                                                [
+                                                                    {
+                                                                        "node":  "Return API Response",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "Show Form Results":  {
+                                                  "main":  [
+                                                               [
+
+                                                               ]
+                                                           ]
+                                              },
+                        "Return API Response":  {
+                                                    "main":  [
+                                                                 [
+
+                                                                 ]
+                                                             ]
+                                                },
+                        "Website Single Paper Brief Webhook":  {
+                                                                   "main":  [
+                                                                                [
+                                                                                    {
+                                                                                        "node":  "Normalize Full Article Input",
+                                                                                        "type":  "main",
+                                                                                        "index":  0
+                                                                                    }
+                                                                                ]
+                                                                            ]
+                                                               },
+                        "Is Website Brief Request":  {
+                                                         "main":  [
+                                                                      [
+                                                                          {
+                                                                              "node":  "Map Website Paper Understanding",
+                                                                              "type":  "main",
+                                                                              "index":  0
+                                                                          }
+                                                                      ],
+                                                                      [
+                                                                          {
+                                                                              "node":  "Render Photo Candidates",
+                                                                              "type":  "main",
+                                                                              "index":  0
+                                                                          }
+                                                                      ]
+                                                                  ]
+                                                     },
+                        "Map Website Paper Understanding":  {
+                                                                "main":  [
+                                                                             [
+
+                                                                             ]
+                                                                         ]
+                                                            }
+                    },
+    "settings":  {
+                     "executionOrder":  "v1",
+                     "binaryMode":  "separate"
+                 },
+    "staticData":  null,
+    "pinData":  {
+
+                },
+    "tags":  [
+
+             ]
+}

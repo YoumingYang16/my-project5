@@ -1,0 +1,6 @@
+services:
+  caddy:
+    ports: !override
+      - "8090:80"
+    volumes:
+      - ./Caddyfile.cloudflare:/etc/caddy/Caddyfile:ro

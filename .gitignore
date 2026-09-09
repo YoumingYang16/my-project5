@@ -1,0 +1,32 @@
+.env
+.env-token-backup
+**/.env
+!.env.example
+!.env.production.example
+!.env.cloudflare.example
+**/target/
+**/node_modules/
+**/uploads/
+**/data/
+**/logs/
+**/.m2/
+**/*.log
+**/*.zip
+**/*.bak
+**/*.backup
+**/*-backup
+**/.idea/
+**/.vscode/
+**/.DS_Store
+
+# User and research data
+**/*.pdf
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+
+# Secrets and credentials
+**/*.key
+**/*.pem
+**/*.p12
+**/*.pfx

@@ -1,0 +1,20 @@
+{
+  "name": "PaperLens · 论文镜",
+  "short_name": "论文镜",
+  "description": "从论文证据生成可传播文案与图片的工作台",
+  "lang": "zh-CN",
+  "start_url": "/#publish",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f3ed",
+  "theme_color": "#8f4b2f",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/images/default-covers/brand-image.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
